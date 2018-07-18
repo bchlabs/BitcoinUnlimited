@@ -21,6 +21,9 @@ void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 /** Register Bitcoin Unlimited's RPC commands */
 void RegisterUnlimitedRPCCommands(CRPCTable &tableRPC);
+/** Regiter Bitcoin Token's RPC commands */ // @contract_token_duxing
+void RegisterContractTokenCommands(CRPCTable &tableRPC);
+
 
 static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 {
@@ -30,6 +33,7 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
     RegisterUnlimitedRPCCommands(tableRPC);
+	RegisterContractTokenCommands(tableRPC);// @contract_token_duxing
 }
 
 #endif

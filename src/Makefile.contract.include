@@ -1,0 +1,9 @@
+CONTRACT_H = \
+	contract/rpctoken.h
+			
+CONTRACT_CPP = \
+	contract/rpctoken.cpp
+					
+libbitcoin_server_a_SOURCES += \
+	$(OMNICORE_CPP) \
+	$(OMNICORE_H)

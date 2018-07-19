@@ -191,7 +191,8 @@ BITCOIN_CORE_H = \
   zmq/zmqabstractnotifier.h \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
-  zmq/zmqpublishnotifier.h
+  zmq/zmqpublishnotifier.h \
+  $(CONTRACT_H)
 
 
 obj/build.h: FORCE
@@ -251,6 +252,7 @@ libbitcoin_server_a_SOURCES = \
   requestManager.cpp \
   validationinterface.cpp \
   versionbits.cpp \
+  $(CONTRACT_CPP) \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -558,3 +560,8 @@ endif
 if ENABLE_QT_TESTS
 include Makefile.qttest.include
 endif
+
+#@contract_token_duxing
+include Makefile.contract.include
+#end
+

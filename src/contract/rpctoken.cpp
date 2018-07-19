@@ -10,6 +10,7 @@
 #include "sync.h"
 #include "dstencode.h"
 #include "core_io.h"
+#include "contract/tokentxcheck.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -43,12 +44,12 @@ UniValue tokenissue(const UniValue& params, bool fHelp)
 
     CMutableTransaction rawTx;
 
-    if (params.size() > 2 && !params[2].isNull()) {
-        int64_t nLockTime = params[2].get_int64();
-        if (nLockTime < 0 || nLockTime > std::numeric_limits<uint32_t>::max())
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, locktime out of range");
-        rawTx.nLockTime = nLockTime;
-    }
+//    if (params.size() > 2 && !params[2].isNull()) {
+//        int64_t nLockTime = params[2].get_int64();
+//        if (nLockTime < 0 || nLockTime > std::numeric_limits<uint32_t>::max())
+//            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, locktime out of range");
+//        rawTx.nLockTime = nLockTime;
+//    }
 
     for (unsigned int idx = 0; idx < inputs.size(); idx++) {
         const UniValue& input = inputs[idx];
@@ -80,11 +81,16 @@ UniValue tokenissue(const UniValue& params, bool fHelp)
         rawTx.vin.push_back(in);
     }
 
+    int error_token = CheckTokenVin(sindTo_vin);
+    if ( error_token )
+    {
+        throw JSONRPCError(error_token, std::string("Token vin error: "));
+    }
 
     CScript scriptData;
     scriptData << OP_RETURN << TOKEN_ISSUE;
 
-    std::vector<std::string> token_vin_list  = sendTo.getKeys();
+    std::vector<std::string> token_vin_list  = sindTo_vin.getKeys();
     for (unsigned int i =0;i<token_vin_list.size();i++)
     {
         string token_vin_txid = token_vin_list[i];
@@ -98,10 +104,9 @@ UniValue tokenissue(const UniValue& params, bool fHelp)
     {
         if (name_ == "name")
         {
-            std::vector<unsigned char> data = ParseHexV(sendTo[name_].getValStr(),"name");
-            scriptData << data;
+            scriptData << ToByteVector(sendTo[name_].getValStr());
         }
-        else if (name_ == "amout")
+        else if (name_ == "amount")
         {
             CAmount amount  = sendTo[name_].get_int64();
             scriptData << amount;
@@ -211,10 +216,10 @@ UniValue tokentransaction(const UniValue& params, bool fHelp)
         string name_ = addrList.at(i);
         if (name_ == "name")
         {
-            std::vector<unsigned char> data = ParseHexV(sendTo[name_].getValStr(),"name");
-            scriptData << data;
+            string name_info = sendTo[name_].getValStr();
+            scriptData << ToByteVector(name_info);
         }
-        else if (name_ == "amout")
+        else if (name_ == "amount")
         {
             CAmount amount  = sendTo[name_].get_int64();
             scriptData << amount;

@@ -9,8 +9,9 @@ enum TokenTxType
      TOKEN_TRANSACTION = 0x0b
 
 };
-UniValue tokenissue(const UniValue& params, bool fHelp);
-UniValue tokentransaction(const UniValue& params, bool fHelp);
+UniValue tokenmint(const UniValue& params, bool fHelp);
+UniValue tokentransfer(const UniValue& params, bool fHelp);
+UniValue listtokeninfo(const UniValue& params, bool fHelp);
 
 
 #endif //CONSTACT_RPCTOKEN_H

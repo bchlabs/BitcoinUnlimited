@@ -14,52 +14,46 @@
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
-UniValue tokenissue(const UniValue& params, bool fHelp)
+UniValue tokenmint(const UniValue& params, bool fHelp)
 {
     using namespace std;
 	if (fHelp || params.size() != 3)
 		throw std::runtime_error(
-				"token_issue \"rawtx\" \"txid\" n\n"
+                "tokenmint \"feetx\" \"txid\" n\n"
 
 				"\nAdds a transaction input to the transaction.\n"
 
 				"\nIf no raw transaction is provided, a new transaction is created.\n"
 
 				"\nArguments:\n"
-				"1. rawtx                (string, required) the raw transaction to extend (can be null)\n"
-				"2. txid                 (string, required) the hash of the input transaction\n"
-				"3. n                    (number, required) the index of the transaction output used as input\n"
+                "1. feetx (rawtx)                \n"
+                "2. witness_token(txid)          \n"
+                "3. tokenInfo)                   \n"
 
 				"\nResult:\n"
 				"\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
 				"\nExamples\n"
-                + HelpExampleCli("token_issue", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
-                + HelpExampleRpc("token_issue", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
+                + HelpExampleCli("tokenmint", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
+                + HelpExampleRpc("tokenmint", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
 				);
 
     UniValue inputs = params[0].get_array();
-    UniValue sindTo_vin = params[1].get_obj();
-    UniValue sendTo = params[2].get_obj();
+    UniValue witness_utxo = params[1].get_obj();
+    UniValue token_sendTo = params[2].get_obj();
 
     CMutableTransaction rawTx;
 
-//    if (params.size() > 2 && !params[2].isNull()) {
-//        int64_t nLockTime = params[2].get_int64();
-//        if (nLockTime < 0 || nLockTime > std::numeric_limits<uint32_t>::max())
-//            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, locktime out of range");
-//        rawTx.nLockTime = nLockTime;
-//    }
-
-    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+    for (unsigned int idx = 0; idx < inputs.size(); idx++)
+    {
         const UniValue& input = inputs[idx];
         const UniValue& o = input.get_obj();
-
         uint256 txid = ParseHashO(o, "txid");
 
         const UniValue& vout_v = find_value(o, "vout");
         if (!vout_v.isNum())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+
         int nOutput = vout_v.get_int();
         if (nOutput < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
@@ -77,39 +71,38 @@ UniValue tokenissue(const UniValue& params, bool fHelp)
         }
 
         CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
-
         rawTx.vin.push_back(in);
     }
 
-    int error_token = CheckTokenVin(sindTo_vin);
+    int error_token = CheckTokenVin(witness_utxo);
     if ( error_token )
     {
         throw JSONRPCError(error_token, std::string("Token vin error: "));
     }
 
-    CScript scriptData;
-    scriptData << OP_RETURN << TOKEN_ISSUE;
+    CScript script_token_tx;
+    script_token_tx << OP_RETURN << TOKEN_ISSUE;
 
-    std::vector<std::string> token_vin_list  = sindTo_vin.getKeys();
-    for (unsigned int i =0;i<token_vin_list.size();i++)
+    std::vector<std::string> token_witness_list  = witness_utxo.getKeys();
+    for (unsigned int i =0; i<token_witness_list.size(); i++)
     {
-        string token_vin_txid = token_vin_list[i];
-        scriptData << ParseHex(token_vin_txid);
-        int vin_pos = sindTo_vin[token_vin_txid].get_int();
-        scriptData << vin_pos ;
+        string witness_txid = token_witness_list.at(i);
+        script_token_tx << ToByteVector(witness_txid);
+        int vin_pos = witness_utxo[witness_txid].get_int();
+        script_token_tx << vin_pos ;
     }
 
-    std::vector<string> addrList = sendTo.getKeys();
+    std::vector<string> addrList = token_sendTo.getKeys();
     BOOST_FOREACH(const string& name_, addrList)
     {
         if (name_ == "name")
         {
-            scriptData << ToByteVector(sendTo[name_].getValStr());
+            script_token_tx << ToByteVector(token_sendTo[name_].getValStr());
         }
         else if (name_ == "amount")
         {
-            CAmount amount  = sendTo[name_].get_int64();
-            scriptData << amount;
+            CAmount amount  = token_sendTo[name_].get_int64();
+            script_token_tx << amount;
         }
         else
         {
@@ -120,62 +113,56 @@ UniValue tokenissue(const UniValue& params, bool fHelp)
             }
 
             CScript scriptPubKey = GetScriptForDestination(destination);
-            scriptData +=  scriptPubKey;
+            script_token_tx  += scriptPubKey;
         }
 
     }
 
-    CTxOut out(0, scriptData);
+    CTxOut out(0, script_token_tx);
     rawTx.vout.push_back(out);
     return EncodeHexTx(rawTx);
 }
 
-UniValue tokentransaction(const UniValue& params, bool fHelp)
+UniValue tokentransfer(const UniValue& params, bool fHelp)
 {
     using namespace std;
     if (fHelp || params.size() != 3)
         throw std::runtime_error(
-                "token_transaction \"rawtx\" \"txid\" n\n"
+                "tokentransaction \"feetx\" \"txid\" n\n"
 
                 "\nAdds a transaction input to the transaction.\n"
 
                 "\nIf no raw transaction is provided, a new transaction is created.\n"
 
                 "\nArguments:\n"
-                "1. rawtx                (string, required) the raw transaction to extend (can be null)\n"
-                "2. txid                 (string, required) the hash of the input transaction\n"
-                "3. n                    (number, required) the index of the transaction output used as input\n"
+                "1. feetx (rawtx)                \n"
+                "2. witness_token(txid , sigture)          \n"
+                "3. tokenInfo)                   \n"
 
                 "\nResult:\n"
                 "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
                 "\nExamples\n"
-                + HelpExampleCli("token_transaction", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
-                + HelpExampleRpc("token_transaction", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
+                + HelpExampleCli("tokentransfer", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
+                + HelpExampleRpc("tokentransfer", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
                 );
 
     UniValue inputs = params[0].get_array();
-    UniValue sindTo_vin = params[1].get_obj();
-    UniValue sendTo = params[2].get_obj();
+    UniValue witness_utxo = params[1].get_obj();
+    UniValue token_sendTo = params[2].get_obj();
 
     CMutableTransaction rawTx;
 
-    if (params.size() > 2 && !params[2].isNull()) {
-        int64_t nLockTime = params[2].get_int64();
-        if (nLockTime < 0 || nLockTime > std::numeric_limits<uint32_t>::max())
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, locktime out of range");
-        rawTx.nLockTime = nLockTime;
-    }
-
-    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+    for (unsigned int idx = 0; idx < inputs.size(); idx++)
+    {
         const UniValue& input = inputs[idx];
         const UniValue& o = input.get_obj();
-
         uint256 txid = ParseHashO(o, "txid");
 
         const UniValue& vout_v = find_value(o, "vout");
         if (!vout_v.isNum())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+
         int nOutput = vout_v.get_int();
         if (nOutput < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
@@ -193,36 +180,47 @@ UniValue tokentransaction(const UniValue& params, bool fHelp)
         }
 
         CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
-
         rawTx.vin.push_back(in);
     }
 
-
-    CScript scriptData;
-    scriptData << OP_RETURN << TOKEN_TRANSACTION;
-
-    std::vector<std::string> token_vin_list  = sendTo.getKeys();
-    for (unsigned int i =0;i<token_vin_list.size();i++)
+    int error_token = CheckTokenVin(witness_utxo);
+    if ( error_token )
     {
-        string token_vin_txid = token_vin_list[i];
-        scriptData << ParseHex(token_vin_txid);
-        int vin_pos = sindTo_vin[token_vin_txid].get_int();
-        scriptData << vin_pos ;
+        throw JSONRPCError(error_token, std::string("Token vin error: "));
     }
 
-    std::vector<string> addrList = sendTo.getKeys();
-    for (unsigned int i =0;i < addrList.size();i++ )
+    CScript script_token_tx;
+    script_token_tx << OP_RETURN << TOKEN_ISSUE;
+
+    std::vector<std::string> token_witness_list  = witness_utxo.getKeys();
+    for (unsigned int i =0; i<token_witness_list.size(); i++)
     {
-        string name_ = addrList.at(i);
+
+        string witness_name = token_witness_list.at(i);
+        if (witness_name == "sign")
+        {
+            script_token_tx << ToByteVector(witness_name);
+        }
+        else
+        {
+            script_token_tx << ToByteVector(witness_name);
+            int vin_pos = witness_utxo[witness_name].get_int();
+            script_token_tx << vin_pos ;
+        }
+
+    }
+
+    std::vector<string> addrList = token_sendTo.getKeys();
+    BOOST_FOREACH(const string& name_, addrList)
+    {
         if (name_ == "name")
         {
-            string name_info = sendTo[name_].getValStr();
-            scriptData << ToByteVector(name_info);
+            script_token_tx << ToByteVector(token_sendTo[name_].getValStr());
         }
         else if (name_ == "amount")
         {
-            CAmount amount  = sendTo[name_].get_int64();
-            scriptData << amount;
+            CAmount amount  = token_sendTo[name_].get_int64();
+            script_token_tx << amount;
         }
         else
         {
@@ -233,12 +231,12 @@ UniValue tokentransaction(const UniValue& params, bool fHelp)
             }
 
             CScript scriptPubKey = GetScriptForDestination(destination);
-            scriptData +=  scriptPubKey;
+            script_token_tx +=  scriptPubKey;
         }
 
     }
 
-    CTxOut out(0, scriptData);
+    CTxOut out(0, script_token_tx);
     rawTx.vout.push_back(out);
     return EncodeHexTx(rawTx);
 
@@ -246,13 +244,20 @@ UniValue tokentransaction(const UniValue& params, bool fHelp)
 //      UniValue result(UniValue::VOBJ);
 //      return result;
 }
+UniValue listtokeninfo(const UniValue &params, bool fHelp)
+{
+    UniValue result(UniValue::VOBJ);
+    return result;
+}
+
 
 static const CRPCCommand commands[] =
 { //  category                             name                            actor (function)               okSafeMode
   //  ------------------------------------ ------------------------------- ------------------------------ ----------
 #ifdef ENABLE_WALLET
-    { "constract token", "tokenissue",                                    &tokenissue,               false },
-    { "constract token", "tokentransaction",                               &tokentransaction,                    false },
+    { "constract token", "tokenmint",                                    &tokenmint,               false },
+    { "constract token", "tokentransfer",                               &tokentransfer,                    false },
+    { "constract token", "listtokeninfo",                               &listtokeninfo,                    false },
 #endif
 };
 
@@ -262,6 +267,7 @@ void RegisterContractTokenCommands(CRPCTable &tableRPC)
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);
 }
+
 
 
 

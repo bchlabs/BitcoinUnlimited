@@ -11,7 +11,7 @@
 #include "timedata.h"
 #include "util.h"
 #include "utilmoneystr.h"
-
+#include "txmempool.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -57,4 +57,63 @@ int CheckTokenVin(const UniValue &params)
     }
 
     return ret;
+}
+
+
+// check (txid,vout) is valid, unspent in blockchain or mempool 
+bool IsTxidUnspent(const std::string txid, const uint32_t vout)
+{
+    if (txid.size() != 64 || !IsHex(txid))
+        return false; // invalid txid
+
+    int height = chainActive.Height();
+    CBlockIndex *pblockindex = NULL;
+    bool txidAndVoutExist = false;
+
+    for (int i = 1; i <= height; ++i) 
+    {
+        pblockindex = chainActive[i];
+        CBlock block;
+        if (ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+        {          
+            for (const auto &tx : block.vtx)
+            {
+                if (!tx->IsCoinBase())
+                {
+                    for (const auto &in: tx->vin)
+                    {
+                        std::string in_hash = in.prevout.hash.ToString();
+                        uint32_t in_n = in.prevout.n;
+                        if (txid == in_hash && vout == in_n)
+                            return false; // (txid.vout) has spend in blockchain
+                    }
+                }
+
+                if (!txidAndVoutExist && tx->GetHash().ToString() == txid)
+                {
+                    if (tx->vout.size() > vout)
+                        txidAndVoutExist = true;
+
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!txidAndVoutExist)
+        return false; // (txid,vout) is not in blockchain
+
+    for (const auto &tx: mempool.mapTx) 
+    {
+        std::cout << tx.GetTx().GetHash().ToString() << std::endl;
+        for (const auto &in: tx.GetTx().vin)
+        {
+            std::string in_hash = in.prevout.hash.ToString();
+            uint32_t in_n = in.prevout.n;
+            if (txid == in_hash && vout == in_n)
+                return false; // (txid,vout) has spend in mempool
+        }
+    }
+
+    return true;
 }

@@ -89,8 +89,13 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
     for (unsigned int i =0; i<token_witness_list.size(); i++)
     {
         string witness_txid = token_witness_list.at(i);
-        script_token_tx << ToByteVector(witness_txid);
         int vin_pos = witness_utxo[witness_txid].get_int();
+        if ( !IsTxidUnspent(witness_txid,(unsigned int)vin_pos))
+        {
+            throw JSONRPCError(-8, std::string("witness id  has spent"));
+        }
+        script_token_tx << ToByteVector(witness_txid);
+        //int vin_pos = witness_utxo[witness_txid].get_int();
         script_token_tx << vin_pos ;
     }
 
@@ -207,8 +212,14 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
         }
         else
         {
-            script_token_tx << ToByteVector(witness_name);
             int vin_pos = witness_utxo[witness_name].get_int();
+            if ( !IsTxidUnspent(witness_name,(unsigned int)vin_pos))
+            {
+                throw JSONRPCError(-8, std::string("witness id  has spent"));
+            }
+            script_token_tx << ToByteVector(witness_name);
+
+
             script_token_tx << vin_pos ;
         }
 

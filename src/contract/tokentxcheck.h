@@ -10,6 +10,6 @@ enum TokenTxErrorCode
 };
 
 int CheckTokenVin(const UniValue& params);
-
+bool IsTxidUnspent(const std::string txid, const int vout);
 
 #endif

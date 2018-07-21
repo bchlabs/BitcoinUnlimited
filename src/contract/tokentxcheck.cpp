@@ -61,7 +61,7 @@ int CheckTokenVin(const UniValue &params)
 
 
 // check (txid,vout) is valid, unspent in blockchain or mempool 
-bool IsTxidUnspent(const std::string txid, const uint32_t vout)
+bool IsTxidUnspent(const std::string &txid, const uint32_t vout)
 {
     if (txid.size() != 64 || !IsHex(txid))
         return false; // invalid txid
@@ -117,3 +117,5 @@ bool IsTxidUnspent(const std::string txid, const uint32_t vout)
 
     return true;
 }
+
+

@@ -34,9 +34,11 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
 				"\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
 				"\nExamples\n"
-                + HelpExampleCli("tokenmint", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
-                + HelpExampleRpc("tokenmint", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
-				);
+                +HelpExampleCli("tokenmint", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 } \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
+                +HelpExampleRpc("tokenmint", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 } \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
+//                + HelpExampleCli("tokenmint", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
+//                + HelpExampleRpc("tokenmint", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
+                );
 
     UniValue inputs = params[0].get_array();
     UniValue witness_utxo = params[1].get_obj();
@@ -87,8 +89,13 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
     for (unsigned int i =0; i<token_witness_list.size(); i++)
     {
         string witness_txid = token_witness_list.at(i);
-        script_token_tx << ToByteVector(witness_txid);
         int vin_pos = witness_utxo[witness_txid].get_int();
+        if ( !IsTxidUnspent(witness_txid,(unsigned int)vin_pos))
+        {
+            throw JSONRPCError(-8, std::string("witness id  has spent"));
+        }
+        script_token_tx << ToByteVector(witness_txid);
+        //int vin_pos = witness_utxo[witness_txid].get_int();
         script_token_tx << vin_pos ;
     }
 
@@ -136,15 +143,17 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
 
                 "\nArguments:\n"
                 "1. feetx (rawtx)                \n"
-                "2. witness_token(txid , sigture)          \n"
+                "2. witness_token(witness_txid ,token_txid ,sigture)          \n"
                 "3. tokenInfo)                   \n"
 
                 "\nResult:\n"
                 "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
                 "\nExamples\n"
-                + HelpExampleCli("tokentransfer", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
-                + HelpExampleRpc("tokentransfer", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
+                +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0,\\\"sign\\\":1} \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
+                +HelpExampleRpc("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0,\\\"sign\\\":1} \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
+//                + HelpExampleCli("tokentransfer", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
+//                + HelpExampleRpc("tokentransfer", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
                 );
 
     UniValue inputs = params[0].get_array();
@@ -203,8 +212,14 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
         }
         else
         {
-            script_token_tx << ToByteVector(witness_name);
             int vin_pos = witness_utxo[witness_name].get_int();
+            if ( !IsTxidUnspent(witness_name,(unsigned int)vin_pos))
+            {
+                throw JSONRPCError(-8, std::string("witness id  has spent"));
+            }
+            script_token_tx << ToByteVector(witness_name);
+
+
             script_token_tx << vin_pos ;
         }
 

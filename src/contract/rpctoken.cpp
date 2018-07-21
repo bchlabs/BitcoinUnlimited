@@ -413,7 +413,8 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     std::string strAddress = addrList.at(1);
     std::cout << "strAddress: " << strAddress <<std::endl;
 
-    std::string strSign = signTokenTxid(strAddress,strTokentxid);
+    // std::string strSign = signTokenTxid(strAddress,strTokentxid);
+    std::string strSign = "sign";
 
     std::cout << "strSign: " << strSign <<std::endl;
 
@@ -526,8 +527,8 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                             if (!mine)
                                 continue;
 
-                            if (!ts.sign_ok)
-                                continue;
+                            // if (!ts.sign_ok)
+                            //     continue;
 
                             mToken[ts.name] += ts.amount;
                         } 

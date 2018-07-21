@@ -449,8 +449,16 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
     if (fHelp || params.size() != 0)
         throw std::runtime_error("listtokeninfo \n");
 
+#ifdef ENABLE_WALLET
+    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+#else
+    LOCK(cs_main);
+#endif
+
     int height = chainActive.Height();
     CBlockIndex *pblockindex = NULL;
+
+    std::map<std::string, CAmount> mToken;
 
     for (int i = 90; i <= height; ++i) 
     {
@@ -470,9 +478,26 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                             // RETURN 10 0x40 
                             // 0x66396231366332396464343933313066623065363063393232663062323331343164386536326432373538373435353561643963363666306264653138646336 
                             // 1 0x03 0x65736b 0x02 0x1027 0x14 0xd5a0da39ece93072133fc42e4858974586ece592
-                            CScript pubkey;
-                            VerifyTokenScript(pk, pubkey);
+
+                            TokenStruct ts = VerifyTokenScript(pk, pubkey);
+
+                            // check (txid,vout)
+                            if (!IsTxidUnspent(ts.txid, ts.vout))
+                                continue;
+
+                            // check address
+                            CTxDestination dest = DecodeDestination(ts.address);
+                            isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest, chainActive.Tip()) : ISMINE_NO;
+                            if (!mine)
+                                continue;
+
+                            CAmount tmp = mToken[ts.name];
+                            mToken[name] += ts.amount;
                         }
+                        else if (pk[0] == OP_RETURN && pk[1] == OP_11)
+                        {
+
+                        } 
                     }
                 }
             }
@@ -480,7 +505,14 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
     }
 
 
-    UniValue result(UniValue::VOBJ);
+    UniValue result(UniValue::VARR);
+    for (auto &it: mToken) 
+    {
+        UniValue obj(UniValue::VOBJ);
+        obj.push_back(Pair("token", it.first));
+        obj.push_back(Pair("amount", it.second));
+        result.push_back(obj);
+    }
     return result;
 }
 

@@ -479,10 +479,10 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                             // 0x66396231366332396464343933313066623065363063393232663062323331343164386536326432373538373435353561643963363666306264653138646336 
                             // 1 0x03 0x65736b 0x02 0x1027 0x14 0xd5a0da39ece93072133fc42e4858974586ece592
 
-                            TokenStruct ts = VerifyTokenScript(pk, pubkey);
+                            TokenStruct ts = VerifyTokenScript(pk);
 
                             // check (txid,vout)
-                            if (!IsTxidUnspent(ts.txid, ts.vout))
+                            if (!IsTxidUnspent(ts.txid, (const uint32_t)(ts.vout)))
                                 continue;
 
                             // check address
@@ -491,8 +491,7 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                             if (!mine)
                                 continue;
 
-                            CAmount tmp = mToken[ts.name];
-                            mToken[name] += ts.amount;
+                            mToken[ts.name] += ts.amount;
                         }
                         else if (pk[0] == OP_RETURN && pk[1] == OP_11)
                         {

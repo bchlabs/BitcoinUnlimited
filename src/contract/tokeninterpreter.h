@@ -3,7 +3,8 @@
 
 #include <univalue.h>
 class CScript;
+struct TokenStruct;
 
-bool VerifyTokenScript(const CScript &token_script, CScript &scriptPubKey);
+TokenStruct &VerifyTokenScript(const CScript &token_script);
 
 #endif

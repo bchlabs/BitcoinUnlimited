@@ -517,6 +517,10 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                         else if (pk[0] == OP_RETURN && pk[1] == OP_11)
                         {
                             TokenStruct ts = VerifyTokenScript(pk);
+
+                            if (!IsTxidUnspent(ts.txid, (const uint32_t)(ts.vout)))
+                                continue;
+
                             CTxDestination dest = DecodeDestination(ts.address);
                             isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest, chainActive.Tip()) : ISMINE_NO;
                             if (!mine)
@@ -524,7 +528,7 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
 
                             if (!ts.sign_ok)
                                 continue;
-                            
+
                             mToken[ts.name] += ts.amount;
                         } 
                     }

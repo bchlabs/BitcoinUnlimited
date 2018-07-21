@@ -119,8 +119,10 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
             }
 
-            CScript scriptPubKey = GetScriptForDestination(destination);
-            script_token_tx  += scriptPubKey;
+            // CScript scriptPubKey = GetScriptForDestination(destination);
+            // script_token_tx  += scriptPubKey;
+            CKeyID keyID = boost::get<CKeyID>(destination);
+            script_token_tx << ToByteVector(keyID);
         }
 
     }
@@ -245,8 +247,10 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
             }
 
-            CScript scriptPubKey = GetScriptForDestination(destination);
-            script_token_tx +=  scriptPubKey;
+            // CScript scriptPubKey = GetScriptForDestination(destination);
+            // script_token_tx  += scriptPubKey;
+            CKeyID keyID = boost::get<CKeyID>(destination);
+            script_token_tx << ToByteVector(keyID);
         }
 
     }

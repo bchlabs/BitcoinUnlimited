@@ -125,18 +125,15 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
             CAmount amount  = token_sendTo[name_].get_int64();
             script_token_tx << amount;
         }
-        else
+        else if (name_ == "address")
         {
-            CTxDestination destination = DecodeDestination(name_);
+            std::string addr = token_sendTo[name_].getValStr();
+            CTxDestination destination = DecodeDestination(addr);
             if (!IsValidDestination(destination))
             {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + addr);
             }
-
-            // CScript scriptPubKey = GetScriptForDestination(destination);
-            // script_token_tx  += scriptPubKey;
-           // CKeyID keyID = boost::get<CKeyID>(destination);
-            script_token_tx << ToByteVector(name_);
+            script_token_tx << ToByteVector(addr);
         }
 
     }
@@ -270,7 +267,7 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
     // send tx
     uint256 hashTx = mergedTx.GetHash();
 
-    bool fOverrideFees = false;
+    bool fOverrideFees = true;
     TransactionClass txClass = TransactionClass::DEFAULT;
 
     CCoinsViewCache &view2 = *pcoinsTip;
@@ -422,20 +419,16 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
             CAmount amount  = token_sendTo[name_].get_int64();
             script_token_tx << amount;
         }
-        else
+        else if (name_ == "address")
         {
-            CTxDestination destination = DecodeDestination(name_);
+            std::string addr = token_sendTo[name_].getValStr();
+            CTxDestination destination = DecodeDestination(addr);
             if (!IsValidDestination(destination))
             {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + addr);
             }
-
-            // CScript scriptPubKey = GetScriptForDestination(destination);
-            // script_token_tx  += scriptPubKey;
-            //CKeyID keyID = boost::get<CKeyID>(destination);
-            script_token_tx << ToByteVector(name_);
+            script_token_tx << ToByteVector(addr);
         }
-
     }
 
     CTxOut out(0, script_token_tx);

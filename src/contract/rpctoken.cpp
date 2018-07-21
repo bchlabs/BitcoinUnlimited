@@ -60,23 +60,19 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
 {
 	if (fHelp || params.size() != 3)
 		throw std::runtime_error(
-                "tokenmint \"feetx\" \"txid\" \n"
-
-				"\nAdds a transaction input to the transaction.\n"
-
-				"\nIf no raw transaction is provided, a new transaction is created.\n"
+                "tokenmint \"(feetxid,vout)\" \"(witnesstxid,vout)\" {\"tokenname\" \"tokenamount\" \"address\"}\n"
 
 				"\nArguments:\n"
-                "1. feetx (rawtx)                \n"
-                "2. witness_token(txid)          \n"
-                "3. tokenInfo)                   \n"
+                "1. (feetxid,vout)                                \n"
+                "2. (witnesstxid,vout)                            \n"
+                "3. {\"tokenname\" \"tokenamount\" \"address\"}   \n"
 
 				"\nResult:\n"
-				"\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
+				"\"txid\"                 (string) the hash of mint w transaction\n"
 
 				"\nExamples\n"
-                +HelpExampleCli("tokenmint", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 } \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
-                +HelpExampleRpc("tokenmint", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 } \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
+                +HelpExampleCli("tokenmint", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":0.01}\"")
+                +HelpExampleCli("tokenmint", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":0.01}\"")
                 );
 
     UniValue inputs = params[0].get_array();
@@ -344,23 +340,21 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     using namespace std;
     if (fHelp || params.size() != 3)
         throw std::runtime_error(
-                "tokentransfer \"feetx\" \"txid\" n\n"
-
-                "\nAdds a transaction input to the transaction.\n"
-
-                "\nIf no raw transaction is provided, a new transaction is created.\n"
+                "tokentransfer \"(feetxid,vout)\" \"(witnesstxid,vout)\" \"(tokenvin,n)\" \"tokenname\" \"address\":\"tokenamount\" \n"
 
                 "\nArguments:\n"
-                "1. feetx (rawtx)                \n"
-                "2. witness_token(witness_txid ,token_txid)          \n"
-                "3. tokenInfo                   \n"
+                "1. (feetxid,vout)           \n"
+                "2. (witnesstxid,vout)       \n"
+                "3. (tokenvin,n)             \n"
+                "4. tokenname                \n"
+                "5. address:tokenamount      \n"               
 
                 "\nResult:\n"
                 "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
                 "\nExamples\n"
-                +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
-                +HelpExampleRpc("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                +HelpExampleCli("tokentransfer", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                +HelpExampleCli("tokentransfer", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
                 );
 
     UniValue inputs = params[0].get_array();

@@ -71,8 +71,8 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
 				"\"txid\"                 (string) the hash of mint w transaction\n"
 
 				"\nExamples\n"
-                +HelpExampleCli("tokenmint", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":0.01}\"")
-                +HelpExampleCli("tokenmint", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":0.01}\"")
+                +HelpExampleCli("tokenmint", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":\\\"xxxxxx\\\"}\"")
+                +HelpExampleCli("tokenmint", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":\\\"xxxxxx\\\"}\"")
                 );
 
     UniValue inputs = params[0].get_array();
@@ -353,8 +353,8 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
                 "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
                 "\nExamples\n"
-                +HelpExampleCli("tokentransfer", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
-                +HelpExampleCli("tokentransfer", "\"[{\\\"feetxid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
                 );
 
     UniValue inputs = params[0].get_array();

@@ -4,6 +4,6 @@
 #include <univalue.h>
 class CScript;
 
-bool VerifyTokenScript(const CScript &token_script);
+bool VerifyTokenScript(const CScript &token_script, CScript &scriptPubKey);
 
 #endif

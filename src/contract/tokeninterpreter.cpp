@@ -3,7 +3,7 @@
 #include "contract/tokentxcheck.h"
 #include "contract/rpctoken.h"
 using namespace std;
-bool VerifyTokenScript(const CScript &token_script)
+bool VerifyTokenScript(const CScript &token_script, CScript &scriptPubKey)
 {
 
 
@@ -32,7 +32,6 @@ bool VerifyTokenScript(const CScript &token_script)
 
     vector<unsigned char> token_name;
     uint64_t  token_amount=0;
-    CScript scriptPubKey;
 
     vector<unsigned char> token_vin;
     int token_vin_pos =0;

@@ -150,18 +150,15 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
             CAmount amount  = token_sendTo[name_].get_int64();
             script_token_tx << amount;
         }
-        else
+        else if (name_ == "address")
         {
-            CTxDestination destination = DecodeDestination(name_);
+            std::string addr = token_sendTo[name_].getValStr();
+            CTxDestination destination = DecodeDestination(addr);
             if (!IsValidDestination(destination))
             {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + addr);
             }
-
-            // CScript scriptPubKey = GetScriptForDestination(destination);
-            // script_token_tx  += scriptPubKey;
-           // CKeyID keyID = boost::get<CKeyID>(destination);
-            script_token_tx << ToByteVector(name_);
+            script_token_tx << ToByteVector(addr);
         }
 
     }
@@ -413,7 +410,7 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     std::string strTokentxid = token_witness_list.at(1);
     std::cout << "strTokentxid: " << strTokentxid <<std::endl;
 
-    std::string strAddress = addrList.at(2);
+    std::string strAddress = addrList.at(1);
     std::cout << "strAddress: " << strAddress <<std::endl;
 
     std::string strSign = signTokenTxid(strAddress,strTokentxid);
@@ -458,13 +455,8 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
             {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
             }
-
-            // CScript scriptPubKey = GetScriptForDestination(destination);
-            // script_token_tx  += scriptPubKey;
-            //CKeyID keyID = boost::get<CKeyID>(destination);
             script_token_tx << ToByteVector(name_);
         }
-
     }
 
     CTxOut out(0, script_token_tx);
@@ -526,15 +518,18 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                         {
                             TokenStruct ts = VerifyTokenScript(pk);
 
-                            if ( ts.sign_ok )
-                            {
-                                std::cout << "sign OK !"<<std::endl;
-                            }
-                            else
-                            {
-                                std::cout << "sign error! " <<std::endl;
-                            }
+                            if (!IsTxidUnspent(ts.txid, (const uint32_t)(ts.vout)))
+                                continue;
 
+                            CTxDestination dest = DecodeDestination(ts.address);
+                            isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest, chainActive.Tip()) : ISMINE_NO;
+                            if (!mine)
+                                continue;
+
+                            if (!ts.sign_ok)
+                                continue;
+
+                            mToken[ts.name] += ts.amount;
                         } 
                     }
                 }

@@ -135,8 +135,8 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
 
             // CScript scriptPubKey = GetScriptForDestination(destination);
             // script_token_tx  += scriptPubKey;
-            CKeyID keyID = boost::get<CKeyID>(destination);
-            script_token_tx << ToByteVector(keyID);
+           // CKeyID keyID = boost::get<CKeyID>(destination);
+            script_token_tx << ToByteVector(name_);
         }
 
     }
@@ -432,8 +432,8 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
 
             // CScript scriptPubKey = GetScriptForDestination(destination);
             // script_token_tx  += scriptPubKey;
-            CKeyID keyID = boost::get<CKeyID>(destination);
-            script_token_tx << ToByteVector(keyID);
+            //CKeyID keyID = boost::get<CKeyID>(destination);
+            script_token_tx << ToByteVector(name_);
         }
 
     }

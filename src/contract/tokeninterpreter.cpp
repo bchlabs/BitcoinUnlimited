@@ -3,7 +3,7 @@
 #include "contract/tokentxcheck.h"
 #include "contract/rpctoken.h"
 using namespace std;
-TokenStruct& VerifyTokenScript(const CScript &token_script)
+TokenStruct VerifyTokenScript(const CScript &token_script)
 {
 
     TokenStruct ret;

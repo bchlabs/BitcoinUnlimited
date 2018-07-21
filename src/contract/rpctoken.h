@@ -18,6 +18,7 @@ struct TokenStruct
 	std::string name;
     uint64_t amount;
     std::string address;
+    bool sign_ok;
 	
 };
 

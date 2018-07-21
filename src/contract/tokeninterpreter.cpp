@@ -1,8 +1,54 @@
-#include "contract/tokeninterpreter.h"
-#include "script/script.h"
-#include "contract/tokentxcheck.h"
+
+#include "base58.h"
 #include "contract/rpctoken.h"
+#include "init.h"
+#include "main.h"
+#include "rpc/server.h"
+#include "script/script.h"
+#include "script/script_error.h"
+#include "script/sign.h"
+#include "script/standard.h"
+#include "sync.h"
+#include "dstencode.h"
+#include "txmempool.h"
+#include "core_io.h"
+#include "contract/tokentxcheck.h"
+#include "contract/tokeninterpreter.h"
 using namespace std;
+
+static bool verifytokentxid(const std::string &strAddress,const std::string &strSign,const std::string &strMessage)
+{
+
+    //LOCK(cs_main);
+
+    CTxDestination destination = DecodeDestination(strAddress);
+    if (!IsValidDestination(destination))
+    {
+        return false;
+    }
+
+    const CKeyID *keyID = boost::get<CKeyID>(&destination);
+    if (!keyID)
+    {
+        return false;
+    }
+
+    bool fInvalid = false;
+    vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
+
+    if (fInvalid)
+        return false;
+
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+
+    CPubKey pubkey;
+    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
+        return false;
+
+    return (pubkey.GetID() == *keyID);
+}
 TokenStruct VerifyTokenScript(const CScript &token_script)
 {
 
@@ -21,6 +67,7 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
     vector<unsigned char> token_vin;
     int token_vin_pos =0;
     CScript sign_token ;
+    vector<unsigned char> sign_token_vect;
 
     int pos =0;
     while (pc <pend)
@@ -96,7 +143,6 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
             if (pos ==3)
             {
                 token_script.GetOp(pc, opcode, token_vin);
-                pos ++;
             }
             else if (pos == 4)
             {
@@ -107,8 +153,8 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
             }
             else if (pos == 5)
             {
-                token_script.GetOp(pc, opcode, vchPushValue);
-                sign_token << vchPushValue;
+                token_script.GetOp(pc, opcode, sign_token_vect);
+                sign_token << sign_token_vect;
             }
             else if(pos == 6)
             {
@@ -134,6 +180,15 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
         {
             break;
         }
+    }
+
+    if ( token_type == TOKEN_TRANSACTION )
+    {
+        std::string sign_vin = std::string(sign_token_vect.begin(),sign_token_vect.end());
+        std::string message_vin  = std::string(token_vin.begin() ,token_vin.end());
+        std::cout << "sign_vin: " << sign_vin<< std::endl;
+         std::cout << "message_vin: " << message_vin<< std::endl;
+        ret.sign_ok = verifytokentxid(ret.address,sign_vin,message_vin);
     }
 
     return ret;

@@ -3,6 +3,7 @@
 
 #include <univalue.h>
 
+
 enum TokenTxType
 {
      TOKEN_ISSUE = 0x0a,
@@ -13,10 +14,10 @@ enum TokenTxType
 struct TokenStruct
 {
 	std::string txid;
-	std::string vout;
+    int vout;
 	std::string name;
-	CAmount amount;
-	std;:string address;
+    uint64_t amount;
+    std::string address;
 	
 };
 

@@ -339,8 +339,6 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
                 "\nExamples\n"
                 +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0,\\\"sign\\\":1} \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
                 +HelpExampleRpc("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0,\\\"sign\\\":1} \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
-//                + HelpExampleCli("tokentransfer", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
-//                + HelpExampleRpc("tokentransfer", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
                 );
 
     UniValue inputs = params[0].get_array();
@@ -443,9 +441,8 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     CTxOut out(0, script_token_tx);
     rawTx.vout.push_back(out);
     return EncodeHexTx(rawTx);
-
-
 }
+
 
 UniValue listtokeninfo(const UniValue &params, bool fHelp)
 {    
@@ -470,10 +467,11 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                         CScript pk = out.scriptPubKey;
                         if (pk[0] == OP_RETURN && pk[1] == OP_10)
                         {
-                            std::cout << "pk: " << FormatScript(pk) << std::endl;
+                            // RETURN 10 0x40 
+                            // 0x66396231366332396464343933313066623065363063393232663062323331343164386536326432373538373435353561643963363666306264653138646336 
+                            // 1 0x03 0x65736b 0x02 0x1027 0x14 0xd5a0da39ece93072133fc42e4858974586ece592
                             CScript pubkey;
                             VerifyTokenScript(pk, pubkey);
-                            std::cout << "pubkey: " << FormatScript(pubkey) << std::endl;
                         }
                     }
                 }

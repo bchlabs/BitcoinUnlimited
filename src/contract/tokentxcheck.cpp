@@ -76,7 +76,7 @@ bool IsTxidUnspent(const std::string &txid, const uint32_t vout)
         CBlock block;
         if (ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
         {          
-            for (const auto &tx : block.vtx)
+            for (const auto &tx: block.vtx)
             {
                 if (!tx->IsCoinBase())
                 {
@@ -118,4 +118,37 @@ bool IsTxidUnspent(const std::string &txid, const uint32_t vout)
     return true;
 }
 
+
+CScript GetTokenScript(const std::string txid)
+{
+    CScript ret;
+
+    if (txid.size() != 64 || !IsHex(txid))
+        return ret; // invalid txid
+
+    int height = chainActive.Height();
+    CBlockIndex *pblockindex = NULL;
+
+    for (int i = 100; i <= height; ++i) 
+    {
+        pblockindex = chainActive[i];
+        CBlock block;
+        if (ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+        {          
+            for (const auto &tx: block.vtx)
+            {
+                if (!tx->IsCoinBase() && txid == tx->GetHash().ToString())
+                {
+                    for (const auto &out: tx->vout)
+                    {
+                        if (out.scriptPubKey[0] == OP_RETURN 
+                            && (out.scriptPubKey[0] == OP_10 || out.scriptPubKey[0] == OP_11))
+                            return out.scriptPubKey;
+                    }
+                }
+            }
+        }
+    }
+    return ret;
+}
 

@@ -344,7 +344,7 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     using namespace std;
     if (fHelp || params.size() != 3)
         throw std::runtime_error(
-                "tokentransaction \"feetx\" \"txid\" n\n"
+                "tokentransfer \"feetx\" \"txid\" n\n"
 
                 "\nAdds a transaction input to the transaction.\n"
 
@@ -352,15 +352,15 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
 
                 "\nArguments:\n"
                 "1. feetx (rawtx)                \n"
-                "2. witness_token(witness_txid ,token_txid ,sigture)          \n"
-                "3. tokenInfo)                   \n"
+                "2. witness_token(witness_txid ,token_txid)          \n"
+                "3. tokenInfo                   \n"
 
                 "\nResult:\n"
                 "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
 
                 "\nExamples\n"
-                +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0,\\\"sign\\\":1} \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
-                +HelpExampleRpc("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0,\\\"sign\\\":1} \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
+                +HelpExampleCli("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                +HelpExampleRpc("tokentransfer", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 ,\\\"token_txid\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
                 );
 
     UniValue inputs = params[0].get_array();
@@ -426,24 +426,18 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     {
 
         string witness_name = token_witness_list.at(i);
-        if (witness_name == "sign")
-        {
-            script_token_tx << ToByteVector(strSign);
-        }
-        else
-        {
-            int vin_pos = witness_utxo[witness_name].get_int();
-            if ( !IsTxidUnspent(witness_name,(unsigned int)vin_pos))
-            {
-                throw JSONRPCError(-8, std::string("witness id  has spent"));
-            }
-            script_token_tx << ToByteVector(witness_name);
 
-
-            script_token_tx << vin_pos ;
+        int vin_pos = witness_utxo[witness_name].get_int();
+        if ( !IsTxidUnspent(witness_name,(unsigned int)vin_pos))
+        {
+            throw JSONRPCError(-8, std::string("witness id  has spent"));
         }
+        script_token_tx << ToByteVector(witness_name);
+        script_token_tx << vin_pos ;
 
     }
+    script_token_tx << ToByteVector(strSign);
+
 
    // std::vector<string> addrList = token_sendTo.getKeys();
     BOOST_FOREACH(const string& name_, addrList)
@@ -452,20 +446,16 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
         {
             script_token_tx << ToByteVector(token_sendTo[name_].getValStr());
         }
-        else if (name_ == "amount")
+        else
         {
+            CTxDestination destination = DecodeDestination(name_);
             CAmount amount  = token_sendTo[name_].get_int64();
             script_token_tx << amount;
-        }
-        else if (name_ == "address")
-        {
-            std::string addr = token_sendTo[name_].getValStr();
-            CTxDestination destination = DecodeDestination(addr);
             if (!IsValidDestination(destination))
             {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + addr);
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + name_);
             }
-            script_token_tx << ToByteVector(addr);
+            script_token_tx << ToByteVector(name_);
         }
     }
 
@@ -527,16 +517,15 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
                         else if (pk[0] == OP_RETURN && pk[1] == OP_11)
                         {
                             TokenStruct ts = VerifyTokenScript(pk);
+                            CTxDestination dest = DecodeDestination(ts.address);
+                            isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest, chainActive.Tip()) : ISMINE_NO;
+                            if (!mine)
+                                continue;
 
-                            if ( ts.sign_ok )
-                            {
-                                std::cout << "sign OK !"<<std::endl;
-                            }
-                            else
-                            {
-                                std::cout << "sign error! " <<std::endl;
-                            }
-
+                            if (!ts.sign_ok)
+                                continue;
+                            
+                            mToken[ts.name] += ts.amount;
                         } 
                     }
                 }

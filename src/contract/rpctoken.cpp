@@ -9,17 +9,33 @@
 #include "script/standard.h"
 #include "sync.h"
 #include "dstencode.h"
+#include "txmempool.h"
 #include "core_io.h"
 #include "contract/tokentxcheck.h"
+#include "contract/tokeninterpreter.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
+
+#include <boost/algorithm/string.hpp>
+#include <boost/assign/list_of.hpp>
+
+static void TxInErrorToJSON(const CTxIn &txin, UniValue &vErrorsRet, const std::string &strMessage)
+{
+    UniValue entry(UniValue::VOBJ);
+    entry.push_back(Pair("txid", txin.prevout.hash.ToString()));
+    entry.push_back(Pair("vout", (uint64_t)txin.prevout.n));
+    entry.push_back(Pair("scriptSig", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    entry.push_back(Pair("sequence", (uint64_t)txin.nSequence));
+    entry.push_back(Pair("error", strMessage));
+    vErrorsRet.push_back(entry);
+}
+
 UniValue tokenmint(const UniValue& params, bool fHelp)
 {
-    using namespace std;
 	if (fHelp || params.size() != 3)
 		throw std::runtime_error(
-                "tokenmint \"feetx\" \"txid\" n\n"
+                "tokenmint \"feetx\" \"txid\" \n"
 
 				"\nAdds a transaction input to the transaction.\n"
 
@@ -36,8 +52,6 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
 				"\nExamples\n"
                 +HelpExampleCli("tokenmint", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 } \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
                 +HelpExampleRpc("tokenmint", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"witness_txid\\\":0 } \" \"{\\\"name\\\":\"token_name\" ,\\\"amount\":1000000,\\\"address\\\":0.01}\"")
-//                + HelpExampleCli("tokenmint", "\"01000000000000000000\" \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\" 0")
-//                + HelpExampleRpc("tokenmint", "\"01000000000000000000\", \"b006729017df05eda586df9ad3f8ccfee5be340aadf88155b784d1fc0e8342ee\", 0")
                 );
 
     UniValue inputs = params[0].get_array();
@@ -88,7 +102,7 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
     std::vector<std::string> token_witness_list  = witness_utxo.getKeys();
     for (unsigned int i =0; i<token_witness_list.size(); i++)
     {
-        string witness_txid = token_witness_list.at(i);
+        std::string witness_txid = token_witness_list.at(i);
         int vin_pos = witness_utxo[witness_txid].get_int();
         if ( !IsTxidUnspent(witness_txid,(unsigned int)vin_pos))
         {
@@ -99,8 +113,8 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
         script_token_tx << vin_pos ;
     }
 
-    std::vector<string> addrList = token_sendTo.getKeys();
-    BOOST_FOREACH(const string& name_, addrList)
+    std::vector<std::string> addrList = token_sendTo.getKeys();
+    BOOST_FOREACH(const std::string& name_, addrList)
     {
         if (name_ == "name")
         {
@@ -129,8 +143,179 @@ UniValue tokenmint(const UniValue& params, bool fHelp)
 
     CTxOut out(0, script_token_tx);
     rawTx.vout.push_back(out);
-    return EncodeHexTx(rawTx);
+
+// sign tx
+#ifdef ENABLE_WALLET
+    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+#else
+    LOCK(cs_main);
+#endif
+
+    std::vector<CMutableTransaction> txVariants;
+    txVariants.push_back(rawTx);
+
+    if (txVariants.empty())
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Missing transaction");
+
+    // mergedTx will end up with all the signatures; it
+    // starts as a clone of the rawtx:
+    CMutableTransaction mergedTx(txVariants[0]);
+
+    // Fetch previous transactions (inputs):
+    CCoinsView viewDummy;
+    CCoinsViewCache view(&viewDummy);
+    {
+        READLOCK(mempool.cs);
+        CCoinsViewCache &viewChain = *pcoinsTip;
+        CCoinsViewMemPool viewMempool(&viewChain, mempool);
+        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
+
+        BOOST_FOREACH (const CTxIn &txin, mergedTx.vin)
+        {
+            view.AccessCoin(txin.prevout); // Load entries from viewChain into view; can fail.
+        }
+
+        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
+    }
+
+    bool fGivenKeys = false;
+    CBasicKeyStore tempKeystore;
+
+#ifdef ENABLE_WALLET
+    if (pwalletMain)
+        EnsureWalletIsUnlocked();
+#endif
+
+#ifdef ENABLE_WALLET
+    const CKeyStore &keystore = ((fGivenKeys || !pwalletMain) ? tempKeystore : *pwalletMain);
+#else
+    const CKeyStore &keystore = tempKeystore;
+#endif
+
+    int nHashType = SIGHASH_ALL;
+    bool pickedForkId = false;
+    if (!pickedForkId) // If the user didn't specify, use the configured default for the hash type
+    {
+        if (IsUAHFforkActiveOnNextBlock(chainActive.Tip()->nHeight))
+        {
+            nHashType |= SIGHASH_FORKID;
+            pickedForkId = true;
+        }
+    }
+
+    bool fHashSingle = ((nHashType & ~(SIGHASH_ANYONECANPAY | SIGHASH_FORKID)) == SIGHASH_SINGLE);
+
+    // Script verification errors
+    UniValue vErrors(UniValue::VARR);
+
+    // Use CTransaction for the constant parts of the
+    // transaction to avoid rehashing.
+    const CTransaction txConst(mergedTx);
+    // Sign what we can:
+    for (unsigned int i = 0; i < mergedTx.vin.size(); i++)
+    {
+        CTxIn &txin = mergedTx.vin[i];
+        const Coin &coin = view.AccessCoin(txin.prevout);
+        if (coin.IsSpent())
+        {
+            TxInErrorToJSON(txin, vErrors, "Input not found or already spent");
+            continue;
+        }
+        const CScript &prevPubKey = coin.out.scriptPubKey;
+        const CAmount &amount = coin.out.nValue;
+
+        // Only sign SIGHASH_SINGLE if there's a corresponding output:
+        if (!fHashSingle || (i < mergedTx.vout.size()))
+            SignSignature(keystore, prevPubKey, mergedTx, i, amount, nHashType);
+
+        // ... and merge in other signatures:
+        if (pickedForkId)
+        {
+            BOOST_FOREACH (const CMutableTransaction &txv, txVariants)
+            {
+                txin.scriptSig = CombineSignatures(prevPubKey,
+                    TransactionSignatureChecker(&txConst, i, amount, SCRIPT_ENABLE_SIGHASH_FORKID), txin.scriptSig,
+                    txv.vin[i].scriptSig);
+            }
+            ScriptError serror = SCRIPT_ERR_OK;
+            if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_ENABLE_SIGHASH_FORKID,
+                    MutableTransactionSignatureChecker(&mergedTx, i, amount, SCRIPT_ENABLE_SIGHASH_FORKID), &serror))
+            {
+                TxInErrorToJSON(txin, vErrors, ScriptErrorString(serror));
+            }
+        }
+        else
+        {
+            BOOST_FOREACH (const CMutableTransaction &txv, txVariants)
+            {
+                txin.scriptSig = CombineSignatures(prevPubKey, TransactionSignatureChecker(&txConst, i, amount, 0),
+                    txin.scriptSig, txv.vin[i].scriptSig);
+            }
+            ScriptError serror = SCRIPT_ERR_OK;
+            if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS,
+                    MutableTransactionSignatureChecker(&mergedTx, i, amount, 0), &serror))
+            {
+                TxInErrorToJSON(txin, vErrors, ScriptErrorString(serror));
+            }
+        }
+    }
+
+    UniValue result(UniValue::VOBJ);
+    if (!vErrors.empty())
+    {
+        result.push_back(Pair("hex", EncodeHexTx(mergedTx)));
+        result.push_back(Pair("errors", vErrors));
+    }
+
+    // send tx
+    uint256 hashTx = mergedTx.GetHash();
+
+    bool fOverrideFees = false;
+    TransactionClass txClass = TransactionClass::DEFAULT;
+
+    CCoinsViewCache &view2 = *pcoinsTip;
+    bool fHaveChain = false;
+    for (size_t o = 0; !fHaveChain && o < mergedTx.vout.size(); o++)
+    {
+        const Coin &existingCoin = view2.AccessCoin(COutPoint(hashTx, o));
+        fHaveChain = !existingCoin.IsSpent();
+    }
+    bool fHaveMempool = mempool.exists(hashTx);
+    if (!fHaveMempool && !fHaveChain)
+    {
+        // push to local node and sync with wallets
+        CValidationState state;
+        bool fMissingInputs;
+        if (!AcceptToMemoryPool(mempool, state, mergedTx, false, &fMissingInputs, false, !fOverrideFees, txClass))
+        {
+            if (state.IsInvalid())
+            {
+                throw JSONRPCError(
+                    RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
+            }
+            else
+            {
+                if (fMissingInputs)
+                {
+                    throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+                }
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
+            }
+        }
+#ifdef ENABLE_WALLET
+        else
+            SyncWithWallets(mergedTx, NULL, -1);
+#endif
+    }
+    else if (fHaveChain)
+    {
+        throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+    }
+    RelayTransaction(mergedTx);
+
+    return hashTx.GetHex();
 }
+
 
 UniValue tokentransfer(const UniValue& params, bool fHelp)
 {
@@ -260,11 +445,43 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     return EncodeHexTx(rawTx);
 
 
-//      UniValue result(UniValue::VOBJ);
-//      return result;
 }
+
 UniValue listtokeninfo(const UniValue &params, bool fHelp)
-{
+{    
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("listtokeninfo \n");
+
+    int height = chainActive.Height();
+    CBlockIndex *pblockindex = NULL;
+
+    for (int i = 90; i <= height; ++i) 
+    {
+        pblockindex = chainActive[i];
+        CBlock block;
+        if (ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+        {          
+            for (const auto &tx : block.vtx)
+            {
+                if (!tx->IsCoinBase())
+                {
+                    for (const auto &out: tx->vout)
+                    {
+                        CScript pk = out.scriptPubKey;
+                        if (pk[0] == OP_RETURN && pk[1] == OP_10)
+                        {
+                            std::cout << "pk: " << FormatScript(pk) << std::endl;
+                            CScript pubkey;
+                            VerifyTokenScript(pk, pubkey);
+                            std::cout << "pubkey: " << FormatScript(pubkey) << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
     UniValue result(UniValue::VOBJ);
     return result;
 }

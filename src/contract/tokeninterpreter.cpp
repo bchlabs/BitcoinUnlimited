@@ -49,6 +49,7 @@ static bool verifytokentxid(const std::string &strAddress,const std::string &str
 
     return (pubkey.GetID() == *keyID);
 }
+
 TokenStruct VerifyTokenScript(const CScript &token_script)
 {
 

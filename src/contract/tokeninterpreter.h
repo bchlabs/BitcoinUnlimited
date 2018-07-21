@@ -5,6 +5,6 @@
 class CScript;
 struct TokenStruct;
 
-TokenStruct &VerifyTokenScript(const CScript &token_script);
+TokenStruct VerifyTokenScript(const CScript &token_script);
 
 #endif

@@ -183,14 +183,14 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
         }
     }
 
-    if ( token_type == TOKEN_TRANSACTION )
-    {
-        std::string sign_vin = std::string(sign_token_vect.begin(),sign_token_vect.end());
-        std::string message_vin  = std::string(token_vin.begin() ,token_vin.end());
-        std::cout << "sign_vin: " << sign_vin<< std::endl;
-         std::cout << "message_vin: " << message_vin<< std::endl;
-        ret.sign_ok = verifytokentxid(ret.address,sign_vin,message_vin);
-    }
+    // if ( token_type == TOKEN_TRANSACTION )
+    // {
+    //     std::string sign_vin = std::string(sign_token_vect.begin(),sign_token_vect.end());
+    //     std::string message_vin  = std::string(token_vin.begin() ,token_vin.end());
+    //     std::cout << "sign_vin: " << sign_vin<< std::endl;
+    //      std::cout << "message_vin: " << message_vin<< std::endl;
+    //     ret.sign_ok = verifytokentxid(ret.address,sign_vin,message_vin);
+    // }
 
     return ret;
 

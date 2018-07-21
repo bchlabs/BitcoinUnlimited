@@ -410,7 +410,7 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     std::string strTokentxid = token_witness_list.at(1);
     std::cout << "strTokentxid: " << strTokentxid <<std::endl;
 
-    std::string strAddress = addrList.at(2);
+    std::string strAddress = addrList.at(1);
     std::cout << "strAddress: " << strAddress <<std::endl;
 
     std::string strSign = signTokenTxid(strAddress,strTokentxid);

@@ -152,3 +152,13 @@ CScript GetTokenScript(const std::string txid)
     return ret;
 }
 
+
+bool WitnessTxidValid(const std::__cxx11::string &witness_txid, const uint32_t witness_vout)
+{
+    return true;
+}
+
+bool TokenInputValid(const std::__cxx11::string &token_input_txid, const uint32_t token_input_vout)
+{
+    return true;
+}

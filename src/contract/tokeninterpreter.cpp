@@ -14,12 +14,11 @@
 #include "core_io.h"
 #include "contract/tokentxcheck.h"
 #include "contract/tokeninterpreter.h"
-using namespace std;
 
 static bool verifytokentxid(const std::string &strAddress,const std::string &strSign,const std::string &strMessage)
 {
 
-    //LOCK(cs_main);
+    LOCK(cs_main);
 
     CTxDestination destination = DecodeDestination(strAddress);
     if (!IsValidDestination(destination))
@@ -34,7 +33,7 @@ static bool verifytokentxid(const std::string &strAddress,const std::string &str
     }
 
     bool fInvalid = false;
-    vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
+    std::vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
 
     if (fInvalid)
         return false;
@@ -59,22 +58,22 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
    // CScript::const_iterator pbegincodehash = token_script.begin();
 
     int token_type = -1;
-    vector<unsigned char> witness_txid ;
+    std::vector<unsigned char> witness_txid ;
     int witness_vout =0;
 
-    vector<unsigned char> token_name;
+    std::vector<unsigned char> token_name;
     uint64_t  token_amount=0;
 
-    vector<unsigned char> token_vin;
+    std::vector<unsigned char> token_vin;
     int token_vin_pos =0;
     CScript sign_token ;
-    vector<unsigned char> sign_token_vect;
+    std::vector<unsigned char> sign_token_vect;
 
     int pos =0;
     while (pc <pend)
     {
         opcodetype opcode;
-        vector<unsigned char> vchPushValue;
+        std::vector<unsigned char> vchPushValue;
 
         if (pos == 0 )
         {

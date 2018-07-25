@@ -13,6 +13,9 @@
 #include "utilmoneystr.h"
 #include "txmempool.h"
 
+#include "contract/contractconfig.h"
+#include "contract/contracterror.h"
+
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
@@ -38,7 +41,7 @@ int CheckTokenVin(const UniValue &params)
        // isminefilter filter = ISMINE_SPENDABLE;
         if (!pwalletMain->mapWallet.count(hash))
         {
-            return ERRORTOKENVIN;
+            return TOKENINPUTSIZEERROR;
         }
         for (unsigned  int j =0;j<vecOutputs.size();j++ )
         {
@@ -53,7 +56,7 @@ int CheckTokenVin(const UniValue &params)
 
     if (!count_utxo)
     {
-        ret = ERRORTOKENVIN;
+        ret = TOKENINPUTSIZEERROR;
     }
 
     return ret;
@@ -162,3 +165,60 @@ bool TokenInputValid(const std::__cxx11::string &token_input_txid, const uint32_
 {
     return true;
 }
+
+std::string signTokenTxid(const std::string &strAddress,const std::string &strMessage)
+{
+
+    CTxDestination dest = DecodeDestination(strAddress);
+    if (!IsValidDestination(dest))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
+
+    const CKeyID *keyID = boost::get<CKeyID>(&dest);
+    if (!keyID)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
+
+    CKey key;
+    if (!pwalletMain->GetKey(*keyID, key))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key not available");
+
+    std::vector<unsigned char> vchSig = signmessage(strMessage, key);
+    if (vchSig.empty())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
+
+    return EncodeBase64(&vchSig[0], vchSig.size());
+}
+
+bool verifytokentxid(const std::string &strAddress,const std::string &strSign,const std::string &strMessage)
+{
+
+    LOCK(cs_main);
+
+    CTxDestination destination = DecodeDestination(strAddress);
+    if (!IsValidDestination(destination))
+    {
+        return false;
+    }
+
+    const CKeyID *keyID = boost::get<CKeyID>(&destination);
+    if (!keyID)
+    {
+        return false;
+    }
+
+    bool fInvalid = false;
+    std::vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
+
+    if (fInvalid)
+        return false;
+
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+
+    CPubKey pubkey;
+    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
+        return false;
+
+    return (pubkey.GetID() == *keyID);
+}
+

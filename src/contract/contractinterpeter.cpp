@@ -4,6 +4,7 @@
 #include "contract/rpctoken.h"
 #include <string>
 #include "contract/tokentxcheck.h"
+#include "contract/contractconfig.h"
 
 
 ContractInterpeter::ContractInterpeter()

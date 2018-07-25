@@ -3,6 +3,7 @@
 
 enum TokenErrorType
 {
+    TOKENOK =0,
     TOKENFORMATERROR = 1,
     TOKENFLAGSIZEERROR = 2,
     TOKENWITNESSSIZEEROR = 3,

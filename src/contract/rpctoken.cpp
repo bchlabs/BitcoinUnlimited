@@ -19,6 +19,7 @@
 #include <vector>
 #include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>
+#include "contract/contractconfig.h"
 
 static void TxInErrorToJSON(const CTxIn &txin, UniValue &vErrorsRet, const std::string &strMessage)
 {
@@ -30,30 +31,6 @@ static void TxInErrorToJSON(const CTxIn &txin, UniValue &vErrorsRet, const std::
     entry.push_back(Pair("error", strMessage));
     vErrorsRet.push_back(entry);
 }
-
-//static std::string signTokenTxid(const std::string &strAddress,const std::string &strMessage)
-//{
-//    //string strAddress = params[0].get_str();
-//    //string strMessage = params[1].get_str();
-
-//    CTxDestination dest = DecodeDestination(strAddress);
-//    if (!IsValidDestination(dest))
-//        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
-
-//    const CKeyID *keyID = boost::get<CKeyID>(&dest);
-//    if (!keyID)
-//        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
-
-//    CKey key;
-//    if (!pwalletMain->GetKey(*keyID, key))
-//        throw JSONRPCError(RPC_WALLET_ERROR, "Private key not available");
-
-//    std::vector<unsigned char> vchSig = signmessage(strMessage, key);
-//    if (vchSig.empty())
-//        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
-
-//    return EncodeBase64(&vchSig[0], vchSig.size());
-//}
 
 
 UniValue tokenmint(const UniValue& params, bool fHelp)

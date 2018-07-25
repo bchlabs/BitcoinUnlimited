@@ -14,40 +14,8 @@
 #include "core_io.h"
 #include "contract/tokentxcheck.h"
 #include "contract/tokeninterpreter.h"
+#include "contract/contractconfig.h"
 
-static bool verifytokentxid(const std::string &strAddress,const std::string &strSign,const std::string &strMessage)
-{
-
-    LOCK(cs_main);
-
-    CTxDestination destination = DecodeDestination(strAddress);
-    if (!IsValidDestination(destination))
-    {
-        return false;
-    }
-
-    const CKeyID *keyID = boost::get<CKeyID>(&destination);
-    if (!keyID)
-    {
-        return false;
-    }
-
-    bool fInvalid = false;
-    std::vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
-
-    if (fInvalid)
-        return false;
-
-    CHashWriter ss(SER_GETHASH, 0);
-    ss << strMessageMagic;
-    ss << strMessage;
-
-    CPubKey pubkey;
-    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
-        return false;
-
-    return (pubkey.GetID() == *keyID);
-}
 
 TokenStruct VerifyTokenScript(const CScript &token_script)
 {
@@ -55,7 +23,6 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
     TokenStruct ret;
     CScript::const_iterator pc = token_script.begin();
     CScript::const_iterator pend = token_script.end();
-   // CScript::const_iterator pbegincodehash = token_script.begin();
 
     int token_type = -1;
     std::vector<unsigned char> witness_txid ;
@@ -93,8 +60,6 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
             {
                 token_type = TOKEN_TRANSACTION;
             }
-           // CScriptNum scriptNumValue(vchPushValue,true);
-           // token_type  = scriptNumValue.getint();
             pos ++ ;
 
         }
@@ -182,14 +147,6 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
         }
     }
 
-    // if ( token_type == TOKEN_TRANSACTION )
-    // {
-    //     std::string sign_vin = std::string(sign_token_vect.begin(),sign_token_vect.end());
-    //     std::string message_vin  = std::string(token_vin.begin() ,token_vin.end());
-    //     std::cout << "sign_vin: " << sign_vin<< std::endl;
-    //      std::cout << "message_vin: " << message_vin<< std::endl;
-    //     ret.sign_ok = verifytokentxid(ret.address,sign_vin,message_vin);
-    // }
 
     return ret;
 

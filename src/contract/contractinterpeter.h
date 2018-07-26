@@ -2,6 +2,7 @@
 #define CONTRACTINTERPETER_H
 #include <vector>
 #include <stack>
+#include <string>
 
 typedef std::vector<unsigned char>  valuetype; //value type
 typedef std::stack<valuetype> programType;//program type
@@ -14,23 +15,43 @@ public:
     ~ContractInterpeter();
 
 public:
-    bool TokenScriptVerify(const CScript &token_script);
+    bool TokenScriptVerify(const CScript &token_script,bool run = true);
+
     int Get_token_error_type();
+
+    int Get_token_tx_type();
+
+    bool Get_token_name(std::string &toke_name);
+
+    bool Get_token_amount(uint64_t &amount);
+
+protected:
+    void ReleaseProgram();
 
 protected:
     bool PushValueToProgram(programType& program,const valuetype&push_value,unsigned int&size,bool has_set_size);
 
-    bool TokenFlagInterpreter(programType& program_flag, unsigned int flag_size);
+    bool TokenFlagInterpreter();
 
-    bool TokenWitnessInterpreter(programType& program_witness, unsigned int witness_size);
+    bool TokenWitnessInterpreter();
 
-    bool TokenInputInterpreter(programType& program_input, unsigned int input_size);
+    bool TokenInputInterpreter();
 
-    bool TokenOutputInterpreter(programType& program_output,unsigned int output_size);
+    bool TokenOutputInterpreter();
 
 private:
     int token_error_type_;
     int token_tx_type_;
+
+    unsigned int flag_size_ = 0;
+    programType program_flag_;
+    unsigned int witness_size_ = 0;
+    programType program_witness_;
+    unsigned int input_size_ = 0;
+    programType program_input_;
+    unsigned int output_size_ = 0;
+    programType program_output_;
+
 
 };
 

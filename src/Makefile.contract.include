@@ -6,7 +6,8 @@ CONTRACT_H = \
 	contract/contractinterpeter.h \
 	contract/contracttally.h \
 	contract/contractconfig.h \
-	contract/contractio.h 
+	contract/contractio.h \
+	contract/interactiveblockchain.h
 
 
 
@@ -17,7 +18,8 @@ CONTRACT_CPP = \
 	contract/tokeninterpreter.cpp \
 	contract/contractinterpeter.cpp \
 	contract/contracttally.cpp \
-	contract/contractio.cpp
+	contract/contractio.cpp \
+	contract/interactiveblockchain.cpp
 	
 	
 					

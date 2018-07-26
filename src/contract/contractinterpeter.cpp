@@ -40,14 +40,14 @@ bool ContractInterpeter::PushValueToProgram(programType& program,const valuetype
     return true;
 }
 
-bool ContractInterpeter::TokenFlagInterpreter(programType &program_flag, unsigned int flag_size)
+bool ContractInterpeter::TokenFlagInterpreter()
 {
-    if ( flag_size  != 1 )
+    if ( flag_size_  != 1 )
     {
         return false;
     }
 
-    valuetype value_flag = program_flag.top();
+    valuetype value_flag = program_flag_.top();
     CScriptNum script_num_value(value_flag ,true);
     token_tx_type_ = script_num_value.getint();
 
@@ -60,17 +60,17 @@ bool ContractInterpeter::TokenFlagInterpreter(programType &program_flag, unsigne
     return true;
 }
 
-bool ContractInterpeter::TokenWitnessInterpreter(programType &program_witness,unsigned int witness_size)
+bool ContractInterpeter::TokenWitnessInterpreter()
 {
-    if ( ( token_tx_type_ == TOKEN_ISSUE || token_tx_type_ == TOKEN_TRANSACTION ) && witness_size  != 2)
+    if ( ( token_tx_type_ == TOKEN_ISSUE || token_tx_type_ == TOKEN_TRANSACTION ) )
     {
         token_error_type_ = TOKENFORMATERROR;
         return false;
     }
 
-    std::string witness_txid = std::string(program_witness.top().begin(),program_witness.top().end());
-    program_witness.pop();
-    int witness_vout = CScriptNum(program_witness.top(),true).getint();
+    std::string witness_txid = std::string(program_witness_.top().begin(),program_witness_.top().end());
+    program_witness_.pop();
+    int witness_vout = CScriptNum(program_witness_.top(),true).getint();
 
     if ( !WitnessTxidValid(witness_txid,witness_vout) )
     {
@@ -82,7 +82,7 @@ bool ContractInterpeter::TokenWitnessInterpreter(programType &program_witness,un
 
 }
 
-bool ContractInterpeter::TokenInputInterpreter(programType &program_input,unsigned int input_size)
+bool ContractInterpeter::TokenInputInterpreter()
 {
 
     if ( token_tx_type_ == TOKEN_ISSUE || token_tx_type_ == TOKEN_TRANSACTION )
@@ -91,9 +91,9 @@ bool ContractInterpeter::TokenInputInterpreter(programType &program_input,unsign
         return false;
     }
 
-    std::string token_input_txid = std::string(program_input.top().begin(),program_input.top().end());
-    program_input.pop();
-    int token_input_vout = CScriptNum(program_input.top(),true).getint();
+    std::string token_input_txid = std::string(program_input_.top().begin(),program_input_.top().end());
+    program_input_.pop();
+    int token_input_vout = CScriptNum(program_input_.top(),true).getint();
 
     if ( !TokenInputValid(token_input_txid,token_input_vout) )
     {
@@ -105,7 +105,7 @@ bool ContractInterpeter::TokenInputInterpreter(programType &program_input,unsign
 
 }
 
-bool ContractInterpeter::TokenOutputInterpreter(programType &program_output,unsigned int output_size)
+bool ContractInterpeter::TokenOutputInterpreter()
 {
     if ( token_tx_type_ == TOKEN_ISSUE && token_tx_type_ == TOKEN_TRANSACTION )
     {
@@ -113,24 +113,25 @@ bool ContractInterpeter::TokenOutputInterpreter(programType &program_output,unsi
         return false;
     }
 
+
     return true;
 }
 
-bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
+bool ContractInterpeter::TokenScriptVerify(const CScript &token_script, bool run)
 {
     bool ret = true;
 
     CScript::const_iterator pc = token_script.begin();
     CScript::const_iterator pend = token_script.end();
-    unsigned int flag_size = 0;
-    programType program_flag;
-    unsigned int witness_size = 0;
-    programType program_witness;
-    unsigned int input_size = 0;
-    programType program_input;
-    unsigned int output_size = 0;
-    programType program_output;
-
+//    unsigned int flag_size_ = 0;
+//    programType program_flag_;
+//    unsigned int witness_size = 0;
+//    programType program_witness;
+//    unsigned int input_size = 0;
+//    programType program_input;
+//    unsigned int output_size = 0;
+//    programType program_output;
+    ReleaseProgram();
 
     opcodetype opcode;
     while ( pc < pend )
@@ -138,7 +139,7 @@ bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
         valuetype vchPushValue;
         if ( token_script.GetOp(pc, opcode, vchPushValue) )
         {
-            if ( program_flag.size() == 0 )
+            if ( program_flag_.size() == 0 )
             {
                 if ( opcode == OP_RETURN )
                 {
@@ -155,15 +156,15 @@ bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
         else
         {
             //  the value  of flag'program  push
-            if ( flag_size != program_flag.size() )
+            if ( flag_size_ != program_flag_.size() )
             {
-                if ( flag_size == 0)
+                if ( flag_size_ == 0)
                 {
-                    ret = PushValueToProgram(program_flag,vchPushValue,flag_size,false);
+                    ret = PushValueToProgram(program_flag_,vchPushValue,flag_size_,false);
                 }
                 else
                 {
-                    ret = PushValueToProgram(program_flag,vchPushValue,flag_size,true);
+                    ret = PushValueToProgram(program_flag_,vchPushValue,flag_size_,true);
                 }
 
                 if ( !ret )
@@ -173,15 +174,15 @@ bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
                 }
             }
             //  the value  of witness'program  push
-            else if ( witness_size != program_witness.size() )
+            else if ( witness_size_ != program_witness_.size() )
             {
-                if ( witness_size == 0)
+                if ( witness_size_ == 0)
                 {
-                    ret = PushValueToProgram(program_witness,vchPushValue,witness_size,false);
+                    ret = PushValueToProgram(program_witness_,vchPushValue,witness_size_,false);
                 }
                 else
                 {
-                    ret = PushValueToProgram(program_witness,vchPushValue,witness_size,true);
+                    ret = PushValueToProgram(program_witness_,vchPushValue,witness_size_,true);
                 }
 
                 if ( !ret )
@@ -191,15 +192,15 @@ bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
                 }
             }
             //  the value  of input'program  push
-            else if ( input_size != program_input.size() )
+            else if ( input_size_ != program_input_.size() )
             {
-                if ( input_size == 0)
+                if ( input_size_ == 0)
                 {
-                    ret = PushValueToProgram(program_input,vchPushValue,input_size,false);
+                    ret = PushValueToProgram(program_input_,vchPushValue,input_size_,false);
                 }
                 else
                 {
-                    ret = PushValueToProgram(program_input,vchPushValue,input_size,true);
+                    ret = PushValueToProgram(program_input_,vchPushValue,input_size_,true);
                 }
 
                 if ( !ret )
@@ -209,15 +210,15 @@ bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
                 }
             }
             //  the value  of output'program  push
-            else if ( output_size != program_output.size() )
+            else if ( output_size_ != program_output_.size() )
             {
-                if ( output_size == 0)
+                if ( output_size_ == 0)
                 {
-                    ret = PushValueToProgram(program_output,vchPushValue,output_size,false);
+                    ret = PushValueToProgram(program_output_,vchPushValue,output_size_,false);
                 }
                 else
                 {
-                    ret = PushValueToProgram(program_output,vchPushValue,output_size,true);
+                    ret = PushValueToProgram(program_output_,vchPushValue,output_size_,true);
                 }
 
                 if ( !ret )
@@ -229,21 +230,72 @@ bool ContractInterpeter::TokenScriptVerify(const CScript &token_script)
         }
     }
 
-    if ( !TokenFlagInterpreter(program_flag,flag_size) )
+    if ( run )
     {
-        return false;
-    }
+        if ( !TokenFlagInterpreter() )
+        {
+            return false;
+        }
 
-    if ( !TokenWitnessInterpreter(program_witness,witness_size) )
-    {
-        return false;
+        if ( !TokenWitnessInterpreter() )
+        {
+            return false;
+        }
+
     }
 
     return ret;
 
 }
 
+
+
 int ContractInterpeter::Get_token_error_type()
 {
     return token_error_type_;
+}
+
+int ContractInterpeter::Get_token_tx_type()
+{
+    return token_tx_type_;
+}
+
+bool ContractInterpeter::Get_token_name(std::string&toke_name)
+{
+    return true;
+}
+
+bool ContractInterpeter::Get_token_amount( uint64_t&amount)
+{
+    return true;
+}
+
+void ContractInterpeter::ReleaseProgram()
+{
+    flag_size_ = 0;
+    //program_flag_
+    while (!program_flag_.empty())
+    {
+        program_flag_.pop();
+    }
+
+    witness_size_ = 0;
+   // program_witness_;
+    while (!program_witness_.empty())
+    {
+        program_witness_.pop();
+    }
+
+    input_size_ = 0;
+    //program_input_;
+    while (!program_input_.empty())
+    {
+        program_input_.pop();
+    }
+    output_size_ = 0;
+    //program_output_;
+    while (!program_output_.empty())
+    {
+        program_output_.pop();
+    }
 }

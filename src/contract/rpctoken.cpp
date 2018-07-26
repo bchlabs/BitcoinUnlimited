@@ -707,8 +707,8 @@ UniValue transfertoken(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
 
         std::string token_name_txid;
-        if ( !ContractTally::GetTokenName(token_txid.ToString(),n_token_output,token_name_txid) )
-            throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token vin ");
+//        if ( !ContractTally::GetTokenName(token_txid.ToString(),n_token_output,token_name_txid) )
+//            throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token vin ");
         if ( token_name.empty() || token_name == "" )
         {
             token_name = token_name_txid;

@@ -17,6 +17,9 @@ UniValue tokenmint(const UniValue& params, bool fHelp);
 UniValue tokentransfer(const UniValue& params, bool fHelp);
 
 UniValue listtokeninfo(const UniValue& params, bool fHelp);
+UniValue minttoken(const UniValue& params, bool fHelp);
+
+UniValue transfertoken(const UniValue& params, bool fHelp);
 
 
 #endif //CONSTACT_RPCTOKEN_H

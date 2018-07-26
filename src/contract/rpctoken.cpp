@@ -20,6 +20,10 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>
 #include "contract/contractconfig.h"
+#include "contract/contracterror.h"
+#include "contract/contractio.h"
+#include "contract/contracttally.h"
+
 
 static void TxInErrorToJSON(const CTxIn &txin, UniValue &vErrorsRet, const std::string &strMessage)
 {
@@ -370,11 +374,6 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
         rawTx.vin.push_back(in);
     }
 
-    //int error_token = CheckTokenVin(witness_utxo);
-   // if ( error_token )
-    //{
-     //   throw JSONRPCError(error_token, std::string("Token vin error: "));
-   // }
     std::vector<std::string> token_witness_list  = witness_utxo.getKeys();
     std::vector<string> addrList = token_sendTo.getKeys();
 
@@ -511,7 +510,7 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
 
 
     UniValue result(UniValue::VARR);
-    for (auto &it: mToken) 
+    for ( auto &it: mToken )
     {
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("token", it.first));
@@ -520,6 +519,266 @@ UniValue listtokeninfo(const UniValue &params, bool fHelp)
     }
     return result;
 }
+static  void GetTokenSignScript(const std::vector<std::string>& token_input_addresses,const std::string& message,CScript&sign_script )
+{
+   sign_script << token_input_addresses.size();
+   for ( unsigned int i =0; i < token_input_addresses.size(); i++ )
+   {
+       std::string sign_message ;
+       sign_message = signTokenTxid(token_input_addresses.at(i),message);
+       sign_script << ToByteVector(sign_message);
+   }
+
+}
+
+UniValue minttoken(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw std::runtime_error(
+                "minttoken \"(feetxid,vout)\" \"(witnesstxid,vout)\" {\"tokenname\" \"tokenamount\" \"address\"}\n"
+
+                "\nArguments:\n"
+                "1. (feetxid,vout)                                \n"
+                "2. (witnesstxid,vout)                            \n"
+                "3. {\"tokenname\" \"tokenamount\" \"address\"}   \n"
+
+                "\nResult:\n"
+                "\"txid\"                 (string) the hash of mint w transaction\n"
+
+                "\nExamples\n"
+                +HelpExampleCli("minttoken", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":\\\"xxxxxx\\\"}\"")
+                +HelpExampleCli("minttoken", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0}\" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"amount\\\":10000,\\\"address\\\":\\\"xxxxxx\\\"}\"")
+                );
+
+    UniValue inputs = params[0].get_array();
+    UniValue token_output = params[1].get_obj();
+
+    CMutableTransaction rawTx;
+
+    for (unsigned int idx = 0; idx < inputs.size(); idx++)
+    {
+        const UniValue& input = inputs[idx];
+        const UniValue& o = input.get_obj();
+        uint256 txid = ParseHashO(o, "txid");
+
+        const UniValue& vout_v = find_value(o, "vout");
+        if (!vout_v.isNum())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+
+        int nOutput = vout_v.get_int();
+        if (nOutput < 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+        uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
+
+        // set the sequence number if passed in the parameters object
+        const UniValue& sequenceObj = find_value(o, "sequence");
+        if (sequenceObj.isNum()) {
+            int64_t seqNr64 = sequenceObj.get_int64();
+            if (seqNr64 < 0 || seqNr64 > std::numeric_limits<uint32_t>::max())
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
+            else
+                nSequence = (uint32_t)seqNr64;
+        }
+
+        CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
+        rawTx.vin.push_back(in);
+    }
+
+    CScript script_token_tx;
+    unsigned int flag_size = 1;
+    script_token_tx << OP_RETURN << flag_size << TOKEN_ISSUE;
+
+
+    unsigned int output_size = 0;
+    std::vector<std::string> addrList = token_output.getKeys();
+    output_size = addrList.size();
+
+    if ( output_size != 3 )
+        throw JSONRPCError(TOKENFORMATERROR, "mint token output size error");
+    script_token_tx << flag_size ;
+
+    BOOST_FOREACH(const std::string& name_, addrList)
+    {
+        if (name_ == "name")
+        {
+            script_token_tx << ToByteVector(token_output[name_].getValStr());
+        }
+        else if (name_ == "amount")
+        {
+            CAmount amount  = token_output[name_].get_int64();
+            script_token_tx << amount;
+        }
+        else if (name_ == "address")
+        {
+            std::string addr = token_output[name_].getValStr();
+            CTxDestination destination = DecodeDestination(addr);
+            if (!IsValidDestination(destination))
+            {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Bitcoin address: ") + addr);
+            }
+            script_token_tx << ToByteVector(addr);
+        }
+    }
+
+    CTxOut out(0, script_token_tx);
+    rawTx.vout.push_back(out);
+    return EncodeHexTx(rawTx);
+}
+
+
+UniValue transfertoken(const UniValue& params, bool fHelp)
+{
+    using namespace std;
+    if (fHelp || params.size() != 3)
+        throw std::runtime_error(
+                "transfertoken \"(feetxid,vout)\" \"(witnesstxid,vout)\" \"(tokenvin,n)\" \"tokenname\" \"address\":\"tokenamount\" \n"
+
+                "\nArguments:\n"
+                "1. (feetxid,vout)           \n"
+                "2. (witnesstxid,vout)       \n"
+                "3. (tokenvin,n)             \n"
+                "4. tokenname                \n"
+                "5. address:tokenamount      \n"
+
+                "\nResult:\n"
+                "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
+
+                "\nExamples\n"
+                +HelpExampleCli("transfertoken", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                +HelpExampleCli("transfertoken", "\"[{\\\"txid\\\":\\\"feetxid\\\",\\\"vout\\\":0}]\" \"{\\\"witnesstxid\\\":0 ,\\\"tokenvin\\\":0} \" \"{\\\"name\\\":\\\"token_name\\\" ,\\\"address\\\":1000000}\"")
+                );
+
+    UniValue inputs = params[0].get_array();
+    UniValue token_inputs = params[1].get_array();
+    UniValue token_outputs = params[2].get_array();
+
+    CMutableTransaction rawTx;
+
+    for (unsigned int idx = 0; idx < inputs.size(); idx++)
+    {
+        const UniValue& input = inputs[idx];
+        const UniValue& o = input.get_obj();
+        uint256 txid = ParseHashO(o, "txid");
+
+        const UniValue& vout_v = find_value(o, "vout");
+        if (!vout_v.isNum())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+
+        int nOutput = vout_v.get_int();
+        if (nOutput < 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+        uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
+
+        // set the sequence number if passed in the parameters object
+        const UniValue& sequenceObj = find_value(o, "sequence");
+        if (sequenceObj.isNum()) {
+            int64_t seqNr64 = sequenceObj.get_int64();
+            if (seqNr64 < 0 || seqNr64 > std::numeric_limits<uint32_t>::max())
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
+            else
+                nSequence = (uint32_t)seqNr64;
+        }
+
+        CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
+        rawTx.vin.push_back(in);
+    }
+
+    unsigned int witness_size = token_inputs.size();
+    unsigned int inputs_size = witness_size*2;
+    std::string token_name = "";
+    CScript script_input;
+
+    std::vector<std::string> sign_address;
+    script_input << inputs_size;
+    for (unsigned int idx = 0; idx < witness_size ; idx++)
+    {
+        const UniValue& input = token_inputs[idx];
+        const UniValue& o = input.get_obj();
+        uint256 token_txid = ParseHashO(o, "txid");
+
+        const UniValue& token_vout_v = find_value(o, "vout");
+        if (!token_vout_v.isNum())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+
+        int n_token_output = token_vout_v.get_int();
+        if ( n_token_output < 0 )
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+        std::string token_name_txid;
+        if ( !ContractTally::GetTokenName(token_txid.ToString(),n_token_output,token_name_txid) )
+            throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token vin ");
+        if ( token_name.empty() || token_name == "" )
+        {
+            token_name = token_name_txid;
+        }
+        else if ( token_name != token_name_txid)
+        {
+            throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token name ,have different token name ");
+        }
+
+
+        if ( !TokenInputValid(token_txid.ToString(),n_token_output) )
+            throw JSONRPCError(TOKENINPUTSIZEERROR, "Token input txid or vout is invalid!");
+        script_input << ToByteVector(token_txid.ToString()) << n_token_output;
+
+        sign_address.push_back(token_txid.ToString());
+    }
+
+    unsigned int output_size = token_inputs.size()*4;
+    CScript script_output;
+    script_output << output_size;
+    std::string sign_message;
+    for ( unsigned int idx = 0; idx < token_outputs.size() ; idx++ )
+    {
+        const UniValue& output = token_outputs[idx];
+        const UniValue& o = output.get_obj();
+
+        uint256 token_txid  = ParseHashO(o,"txid");
+
+        const UniValue& token_vout_v = find_value(o,"vout");
+        if ( !token_vout_v.isNum() )
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+        int n_token_vout = token_vout_v.get_int();
+
+        const UniValue& token_name_v = find_value(o,"name");
+        if ( !token_name_v.isStr() )
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing name key");
+        std::string str_token_name = token_name_v.get_str();
+
+        if ( token_name  != str_token_name )
+            throw JSONRPCError(TOKENOUTPUTSIZEERROR, "Invalid parameter, vin token name diff from vout token name");
+
+        const UniValue& token_amount_v = find_value(o,"amount");
+        if ( !token_amount_v.isNum() )
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing amount key");
+        uint64_t amount = token_amount_v.get_int64();
+        sign_message += token_txid.ToString();
+        sign_message += contractio::intToString(n_token_vout);
+        sign_message += str_token_name;
+        sign_message += contractio::uint64ToString(amount);
+        script_output << ToByteVector(token_txid.ToString());
+        script_output << n_token_vout ;
+        script_output << ToByteVector(str_token_name);
+        script_output << amount;
+    }
+
+    CScript script_sign;
+    GetTokenSignScript(sign_address,sign_message,script_sign);
+
+    CScript  script_token_tx;
+    unsigned int flag_size = 1;
+    script_token_tx << OP_RETURN << flag_size;
+    script_token_tx << flag_size << TOKEN_TRANSACTION;
+    script_token_tx += script_sign;
+    script_token_tx += script_input;
+    script_token_tx += script_output;
+    CTxOut out(0, script_token_tx);
+    rawTx.vout.push_back(out);
+    return EncodeHexTx(rawTx);
+}
+
 
 
 static const CRPCCommand commands[] =
@@ -529,6 +788,8 @@ static const CRPCCommand commands[] =
     { "constract token", "tokenmint",                                    &tokenmint,               false },
     { "constract token", "tokentransfer",                               &tokentransfer,                    false },
     { "constract token", "listtokeninfo",                               &listtokeninfo,                    false },
+    { "constract token", "minttoken",                                    &minttoken,               false },
+    { "constract token", "transfertoken",                               &transfertoken,                    false },
 #endif
 };
 

@@ -46,6 +46,8 @@ static const CRPCConvertParam vRPCConvertParams[] = {
 	//@contract_token_duxing
     {"tokenmint",0}, {"tokenmint",1},{"tokenmint",2},
     {"tokentransfer",0}, {"tokentransfer",1},{"tokentransfer",2},
+    {"minttoken",0}, {"minttoken",1},{"minttoken",2},
+    {"transfertoken",0}, {"transfertoken",1},{"transfertoken",2},
 };
 
 class CRPCConvertTable

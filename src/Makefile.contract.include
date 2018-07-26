@@ -5,7 +5,8 @@ CONTRACT_H = \
 	contract/contracterror.h \
 	contract/contractinterpeter.h \
 	contract/contracttally.h \
-	contract/contractconfig.h
+	contract/contractconfig.h \
+	contract/contractio.h 
 
 
 
@@ -15,7 +16,9 @@ CONTRACT_CPP = \
 	contract/tokentxcheck.cpp \
 	contract/tokeninterpreter.cpp \
 	contract/contractinterpeter.cpp \
-	contract/contracttally.cpp
+	contract/contracttally.cpp \
+	contract/contractio.cpp
+	
 	
 					
 libbitcoin_server_a_SOURCES += \

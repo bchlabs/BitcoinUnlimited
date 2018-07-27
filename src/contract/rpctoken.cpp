@@ -692,7 +692,8 @@ UniValue transfertoken(const UniValue& params, bool fHelp)
 
     std::vector<std::string> sign_address;
     script_input << inputs_size;
-    for (unsigned int idx = 0; idx < witness_size ; idx++)
+    uint64_t token_input_amount = 0;
+    for (unsigned int idx = 0; idx < token_inputs.size() ; idx++)
     {
         const UniValue& input = token_inputs[idx];
         const UniValue& o = input.get_obj();
@@ -706,9 +707,14 @@ UniValue transfertoken(const UniValue& params, bool fHelp)
         if ( n_token_output < 0 )
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
 
+        if ( !TokenInputValid(token_txid.ToString(),n_token_output) )
+            throw JSONRPCError(TOKENINPUTSIZEERROR, "Token input txid or vout is invalid!");
+
         std::string token_name_txid;
-//        if ( !ContractTally::GetTokenName(token_txid.ToString(),n_token_output,token_name_txid) )
-//            throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token vin ");
+        uint64_t token_amount_txid = 0;
+        if (!ContractTally::Instance()->GetTokenNameAmount(token_txid.ToString(),n_token_output,token_name_txid,token_amount_txid))
+            throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token vin ");
+
         if ( token_name.empty() || token_name == "" )
         {
             token_name = token_name_txid;
@@ -718,11 +724,9 @@ UniValue transfertoken(const UniValue& params, bool fHelp)
             throw JSONRPCError(TOKENINPUTSIZEERROR, "Invalid token name ,have different token name ");
         }
 
+        token_input_amount += token_amount_txid;
 
-        if ( !TokenInputValid(token_txid.ToString(),n_token_output) )
-            throw JSONRPCError(TOKENINPUTSIZEERROR, "Token input txid or vout is invalid!");
         script_input << ToByteVector(token_txid.ToString()) << n_token_output;
-
         sign_address.push_back(token_txid.ToString());
     }
 
@@ -730,12 +734,17 @@ UniValue transfertoken(const UniValue& params, bool fHelp)
     CScript script_output;
     script_output << output_size;
     std::string sign_message;
+    uint64_t token_output_amount = 0 ;
     for ( unsigned int idx = 0; idx < token_outputs.size() ; idx++ )
     {
         const UniValue& output = token_outputs[idx];
         const UniValue& o = output.get_obj();
 
-        uint256 token_txid  = ParseHashO(o,"txid");
+        //uint256 token_txid  = ParseHashO(o,"address");
+        const UniValue&token_address_v = find_value(o,"address");
+        if ( !token_address_v.isNum() )
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing address key");
+        std::string str_token_address = token_address_v.get_str();
 
         const UniValue& token_vout_v = find_value(o,"vout");
         if ( !token_vout_v.isNum() )
@@ -754,15 +763,19 @@ UniValue transfertoken(const UniValue& params, bool fHelp)
         if ( !token_amount_v.isNum() )
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing amount key");
         uint64_t amount = token_amount_v.get_int64();
-        sign_message += token_txid.ToString();
+        token_output_amount += amount;
+        sign_message += str_token_address;
         sign_message += contractio::intToString(n_token_vout);
         sign_message += str_token_name;
         sign_message += contractio::uint64ToString(amount);
-        script_output << ToByteVector(token_txid.ToString());
+        script_output << ToByteVector(str_token_address);
         script_output << n_token_vout ;
         script_output << ToByteVector(str_token_name);
         script_output << amount;
     }
+
+    if (token_input_amount < token_output_amount)
+        throw JSONRPCError(TOKENSTATISTICS, "Invalid token inputs, less than outputs");
 
     CScript script_sign;
     GetTokenSignScript(sign_address,sign_message,script_sign);

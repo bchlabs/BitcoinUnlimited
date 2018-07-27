@@ -33,7 +33,7 @@ bool ContractInterpeter::PushValueToProgram(programType& program,const valuetype
     {
         if ( program.size() < size )
         {
-            program.push(push_value);
+            program.push_back(push_value);
         }
     }
 
@@ -47,7 +47,7 @@ bool ContractInterpeter::TokenFlagInterpreter()
         return false;
     }
 
-    valuetype value_flag = program_flag_.top();
+    valuetype value_flag = program_flag_.back();
     CScriptNum script_num_value(value_flag ,true);
     token_tx_type_ = script_num_value.getint();
 
@@ -68,9 +68,9 @@ bool ContractInterpeter::TokenWitnessInterpreter()
         return false;
     }
 
-    std::string witness_txid = std::string(program_witness_.top().begin(),program_witness_.top().end());
-    program_witness_.pop();
-    int witness_vout = CScriptNum(program_witness_.top(),true).getint();
+    std::string witness_txid = std::string(program_witness_.back().begin(),program_witness_.back().end());
+    program_witness_.pop_back();
+    int witness_vout = CScriptNum(program_witness_.back(),true).getint();
 
     if ( !WitnessTxidValid(witness_txid,witness_vout) )
     {
@@ -91,9 +91,9 @@ bool ContractInterpeter::TokenInputInterpreter()
         return false;
     }
 
-    std::string token_input_txid = std::string(program_input_.top().begin(),program_input_.top().end());
-    program_input_.pop();
-    int token_input_vout = CScriptNum(program_input_.top(),true).getint();
+    std::string token_input_txid = std::string(program_input_.back().begin(),program_input_.back().end());
+    program_input_.pop_back();
+    int token_input_vout = CScriptNum(program_input_.back(),true).getint();
 
     if ( !TokenInputValid(token_input_txid,token_input_vout) )
     {
@@ -260,42 +260,65 @@ int ContractInterpeter::Get_token_tx_type()
     return token_tx_type_;
 }
 
-bool ContractInterpeter::Get_token_name(std::string&toke_name)
+bool ContractInterpeter::Get_token_name(std::string&token_name)
 {
+    unsigned int size = (program_output_.size() + 1 ) / 4 ;
+    if ((program_output_.size()+1) % 4)
+    {
+        return false;
+    }
+    token_name = "";
+    for (unsigned int i = 0; i < size; i++)
+    {
+        unsigned int pos = 2 + i*4;
+        std::string token_vout_name = std::string(program_output_.at(pos).begin(),program_output_.at(pos).end());
+        if (token_name.empty() || token_name == "")
+        {
+            token_name = token_vout_name;
+        }
+        else if ( token_name  != token_vout_name )
+        {
+             return false;
+        }
+    }
     return true;
 }
 
 bool ContractInterpeter::Get_token_amount( uint64_t&amount)
 {
+    unsigned int size = (program_output_.size() + 1) / 4;
+
+    if ((program_output_.size()+1) % 4)
+    {
+        return false;
+    }
+    amount = 0;
+    for (unsigned int i = 0; i < size; i++)
+    {
+        unsigned int pos = 3 + i*4;
+
+        uint64_t amount_vout = CScriptNum(program_output_.at(pos),true).getint64();
+        amount += amount_vout;
+    }
+
     return true;
 }
 
 void ContractInterpeter::ReleaseProgram()
 {
-    flag_size_ = 0;
     //program_flag_
-    while (!program_flag_.empty())
-    {
-        program_flag_.pop();
-    }
+    flag_size_ = 0;
+    program_flag_.clear();
 
+    // program_witness_;
     witness_size_ = 0;
-   // program_witness_;
-    while (!program_witness_.empty())
-    {
-        program_witness_.pop();
-    }
+    program_witness_.clear();
 
-    input_size_ = 0;
     //program_input_;
-    while (!program_input_.empty())
-    {
-        program_input_.pop();
-    }
-    output_size_ = 0;
+    input_size_ = 0;
+    program_input_.clear();
+
     //program_output_;
-    while (!program_output_.empty())
-    {
-        program_output_.pop();
-    }
+    output_size_ = 0;
+    program_output_.clear();
 }

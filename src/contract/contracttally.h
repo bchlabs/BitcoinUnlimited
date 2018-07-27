@@ -7,6 +7,7 @@ struct ContractData
 {
     uint64_t chain_postion;
     int block_postion;
+    std::string txid;
     int vout;
 
 };
@@ -25,12 +26,14 @@ public:
     ContractTally();
     ~ContractTally();
 
-    void  AddTokenHead(const std::string&txid,int vout);
+    void  UpdateBlockChainToTally();
 
-    static bool GetTokenNameAmount(const std::string token_txid,int vout ,std::string &token_name,uint64_t&token_amount);
+    bool GetTokenNameAmount(const std::__cxx11::string &token_txid, int vout , std::string &token_name, uint64_t&token_amount);
 
+    static ContractTally* Instance();
 private:
     InteractiveBlockChain*  contranct_catch_;
+    static ContractTally * gs_single_tally_;
 };
 
 #endif // CONTRACTTALLY_H

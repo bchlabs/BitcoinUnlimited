@@ -5,7 +5,7 @@
 #include <string>
 
 typedef std::vector<unsigned char>  valuetype; //value type
-typedef std::stack<valuetype> programType;//program type
+typedef std::vector<valuetype> programType;//program type
 class CScript;
 
 class ContractInterpeter
@@ -21,7 +21,7 @@ public:
 
     int Get_token_tx_type();
 
-    bool Get_token_name(std::string &toke_name);
+    bool Get_token_name(std::string &token_name);
 
     bool Get_token_amount(uint64_t &amount);
 

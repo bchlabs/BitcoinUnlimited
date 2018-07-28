@@ -23,6 +23,8 @@ public:
 public:
     bool GetTokenNameAmount(const std::string & txid,int vout,std::string &token_name,uint64_t&amount);
 
+    bool GetTokenAddress(const std::string & txid, int vout, std::vector<std::string> &vect_token_address);
+
 protected:
     void AddTokenTxData(uint64_t begin,uint64_t end);
 

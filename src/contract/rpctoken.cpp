@@ -594,7 +594,7 @@ UniValue minttoken(const UniValue& params, bool fHelp)
     std::vector<std::string> addrList = token_output.getKeys();
     output_size = addrList.size();
 
-    if ( output_size != 3 )
+    if (output_size != 3)
         throw JSONRPCError(TOKENFORMATERROR, "mint token output size error");
     script_token_tx << flag_size ;
 

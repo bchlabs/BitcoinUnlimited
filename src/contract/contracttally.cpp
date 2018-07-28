@@ -16,12 +16,19 @@ void ContractTally::UpdateBlockChainToTally()
     contranct_catch_->UpdateTokenTxData();
 }
 
-bool ContractTally::GetTokenNameAmount(const std::__cxx11::string& token_txid, int vout, std::__cxx11::string &token_name, uint64_t &token_amount)
+bool ContractTally::GetTokenNameAmount(const std::string& token_txid, int vout, std::string &token_name, uint64_t &token_amount)
 {
 
     if (!contranct_catch_->GetTokenNameAmount(token_txid,vout,token_name,token_amount))
         return false;
 
+    return true;
+}
+
+bool ContractTally::GetTokenTxAddress(const std::string &token_txid, int vout, std::vector<std::string> &vect_token_address)
+{
+    if (!contranct_catch_->GetTokenAddress(token_txid,vout,vect_token_address))
+        return false;
     return true;
 }
 

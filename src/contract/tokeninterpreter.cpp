@@ -32,7 +32,7 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
     uint64_t  token_amount=0;
 
     std::vector<unsigned char> token_vin;
-    int token_vin_pos =0;
+//    int token_vin_pos =0;
     CScript sign_token ;
     std::vector<unsigned char> sign_token_vect;
 
@@ -112,9 +112,9 @@ TokenStruct VerifyTokenScript(const CScript &token_script)
             else if (pos == 4)
             {
                 token_script.GetOp(pc, opcode, vchPushValue);
-                CScriptNum scriptNumValue(vchPushValue,true);
+//                CScriptNum scriptNumValue(vchPushValue,true);
 
-                token_vin_pos  = scriptNumValue.getint();
+//                token_vin_pos  = scriptNumValue.getint();
             }
             else if (pos == 5)
             {

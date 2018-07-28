@@ -8,15 +8,14 @@ int CheckTokenVin(const UniValue& params);
 
 bool IsTxidUnspent(const std::string &txid, const uint32_t vout);
 
-CScript GetTokenScript(const std::string txid);
 
-bool WitnessTxidValid(const std::string &witness_txid,const uint32_t witness_vout);
+bool WitnessValid(const std::vector<std::string>&witness_data,const std::vector<std::string>&witness_address,const std::string&org_message);
 
 bool TokenInputValid(const std::string &token_input_txid,const uint32_t token_input_vout);
 
 std::string signTokenTxid(const std::string &strAddress,const std::string &strMessage);
 
-bool verifytokentxid(const std::string &strAddress,const std::string &strSign,const std::string &strMessage);
+bool verifyWitness(const std::string &strSign, const std::string &strAddress, const std::string &strMessage);
 
 
 

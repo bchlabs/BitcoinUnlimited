@@ -34,12 +34,12 @@ void InteractiveBlockChain::UpdateTokenTxData()
 void InteractiveBlockChain::RetsetTokenTxData()
 {
 
-    for ( unsigned int i = 0; i < vect_mint_token_data_.size() ; ++i )
+    for (unsigned int i = 0; i < vect_mint_token_data_.size(); ++i)
     {
         delete vect_mint_token_data_.at(i);
     }
 
-    for ( unsigned int i = 0; i < vect_transfer_token_data_.size() ; ++i )
+    for (unsigned int i = 0; i < vect_transfer_token_data_.size(); ++i)
     {
         delete vect_transfer_token_data_.at(i);
     }
@@ -47,7 +47,7 @@ void InteractiveBlockChain::RetsetTokenTxData()
     vect_transfer_token_data_.clear();
 }
 
-bool InteractiveBlockChain::GetTokenNameAmount(const std::__cxx11::string &txid, int vout, std::__cxx11::string &token_name, uint64_t &amount)
+bool InteractiveBlockChain::GetTokenNameAmount(const std::string &txid, int vout, std::string &token_name, uint64_t &amount)
 {
     unsigned int i = 0;
     TokenData* token_tx_mint = NULL;
@@ -80,14 +80,44 @@ bool InteractiveBlockChain::GetTokenNameAmount(const std::__cxx11::string &txid,
 
 }
 
+bool InteractiveBlockChain::GetTokenAddress(const std::string &txid, int vout, std::vector<std::string> &vect_token_address)
+{
+
+    unsigned int i = 0;
+    TokenData* token_tx_mint = NULL;
+    TokenData* token_tx_transfer = NULL;
+    for (; i < vect_mint_token_data_.size(); ++i)
+    {
+        token_tx_mint = vect_mint_token_data_.at(i);
+        if (token_tx_mint->txid == txid && token_tx_mint->vout == vout)
+        {
+            vect_token_address = token_tx_mint->vect_token_out_address;
+            return true;
+        }
+    }
+
+    i = 0;
+
+    for (; i < vect_transfer_token_data_.size(); ++i)
+    {
+        token_tx_transfer = vect_transfer_token_data_.at(i);
+        if (token_tx_transfer->txid == txid && token_tx_transfer->vout == vout)
+        {
+            vect_token_address = token_tx_transfer->vect_token_out_address;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void InteractiveBlockChain::AddTokenTxData(uint64_t begin, uint64_t end)
 {
     uint64_t i = begin;
     CBlockIndex *pblockindex = NULL;
     ContractInterpeter token_validator;
-    TokenData* token_tx_mint = NULL;
-    TokenData* token_tx_transfer = NULL;
-    for ( ; i <= end; ++i)
+    TokenData* token_tx = NULL;
+    for (; i <= end; ++i)
     {
         pblockindex = chainActive[i];
         CBlock block;
@@ -97,38 +127,33 @@ void InteractiveBlockChain::AddTokenTxData(uint64_t begin, uint64_t end)
             {
                 std::shared_ptr<const CTransaction> tx = block.vtx.at(j);
 
-                if ( tx->IsCoinBase() )
+                if (tx->IsCoinBase())
                 {
                     continue;
                 }
 
-                for ( unsigned int k = 0; k < tx->vout.size(); k++ )
+                for (unsigned int k = 0; k < tx->vout.size(); k++ )
                 {
                     CTxOut out = tx->vout.at(k);
-                    if ( token_validator.TokenScriptVerify( out.scriptPubKey,false ) )
+                    if (token_validator.TokenScriptVerify(out.scriptPubKey,false))
                     {
-                        if ( token_validator.Get_token_tx_type()  == TOKEN_ISSUE )
+
+                        if ( token_validator.Get_token_tx_type()  == TOKEN_ISSUE
+                             || token_validator.Get_token_tx_type() == TOKEN_TRANSACTION)
                         {
-                            token_tx_mint = new  TokenData;
-                            token_tx_mint->chain_postion = i ;
-                            token_tx_mint->block_postion = j ;
-                            token_tx_mint->txid = tx->GetHash().ToString();
-                            token_tx_mint->vout = k;
-                            token_validator.Get_token_name(token_tx_mint->token_name);
-                            token_validator.Get_token_amount(token_tx_mint->token_amount);
-                            vect_mint_token_data_.push_back(token_tx_mint);
-                            token_tx_mint = NULL;
-                        }
-                        else if ( token_validator.Get_token_tx_type() == TOKEN_TRANSACTION )
-                        {
-                            token_tx_transfer = new  TokenData;
-                            token_tx_transfer->chain_postion = i ;
-                            token_tx_transfer->block_postion = j ;
-                            token_tx_mint->txid = tx->GetHash().ToString();
-                            token_tx_transfer->vout = k;
-                            token_validator.Get_token_name(token_tx_transfer->token_name);
-                            token_validator.Get_token_amount(token_tx_transfer->token_amount);
-                            vect_transfer_token_data_.push_back(token_tx_transfer);
+                            token_tx = new  TokenData;
+                            token_tx->chain_postion = i ;
+                            token_tx->block_postion = j ;
+                            token_tx->txid = tx->GetHash().ToString();
+                            token_tx->vout = k;
+                            token_validator.Get_token_name(token_tx->token_name);
+                            token_validator.Get_token_amount(token_tx->token_amount);
+                            token_validator.Get_token_address(token_tx->vect_token_out_address);
+                            if ( token_validator.Get_token_tx_type()  == TOKEN_ISSUE  )
+                                vect_mint_token_data_.push_back(token_tx);
+                            else
+                                vect_transfer_token_data_.push_back(token_tx);
+                            token_tx = NULL;
                         }
                     }
                 }

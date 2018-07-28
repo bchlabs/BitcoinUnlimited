@@ -1,7 +1,7 @@
 #ifndef CONTRACTINTERPETER_H
 #define CONTRACTINTERPETER_H
 #include <vector>
-#include <stack>
+
 #include <string>
 
 typedef std::vector<unsigned char>  valuetype; //value type
@@ -25,8 +25,16 @@ public:
 
     bool Get_token_amount(uint64_t &amount);
 
+    bool Get_token_address(std::vector<std::string>&vect_address);
+
+    bool Get_token_sign_message(std::string&signMessage);
+
+    bool Get_token_inputs(std::vector<std::string>&vect_txid, std::vector<int>&vect_txid_vout);
+
 protected:
     void ReleaseProgram();
+
+    bool Get_token_inputs_address(std::vector<std::string>&vect_address);
 
 protected:
     bool PushValueToProgram(programType& program,const valuetype&push_value,unsigned int&size,bool has_set_size);

@@ -16,6 +16,7 @@ struct TokenData : public ContractData
 {
     std::string token_name;
     uint64_t token_amount;
+    std::vector<std::string> vect_token_out_address;
 };
 
 class  InteractiveBlockChain;
@@ -28,7 +29,9 @@ public:
 
     void  UpdateBlockChainToTally();
 
-    bool GetTokenNameAmount(const std::__cxx11::string &token_txid, int vout , std::string &token_name, uint64_t&token_amount);
+    bool GetTokenNameAmount(const std::string &token_txid, int vout , std::string &token_name, uint64_t&token_amount);
+
+    bool GetTokenTxAddress(const std::string &token_txid, int vout ,std::vector<std::string>&vect_token_address);
 
     static ContractTally* Instance();
 private:

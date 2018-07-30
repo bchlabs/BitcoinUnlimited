@@ -383,7 +383,7 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
     std::string strAddress = addrList.at(1);
     std::cout << "strAddress: " << strAddress <<std::endl;
 
-    // std::string strSign = signTokenTxid(strAddress,strTokentxid);
+    // std::string strSign = signCommit(strAddress,strTokentxid);
     std::string strSign = "sign";
 
     std::cout << "strSign: " << strSign <<std::endl;
@@ -525,7 +525,19 @@ static  void GetTokenSignScript(const std::vector<std::string>& token_input_addr
    for ( unsigned int i =0; i < token_input_addresses.size(); i++ )
    {
        std::string sign_message ;
-       sign_message = signTokenTxid(token_input_addresses.at(i),message);
+
+       CTxDestination dest = DecodeDestination(token_input_addresses.at(i));
+       if (!IsValidDestination(dest))
+           throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
+
+       const CKeyID *keyID = boost::get<CKeyID>(&dest);
+       if (!keyID)
+           throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
+
+       CKey key;
+       if (!pwalletMain->GetKey(*keyID, key))
+           throw JSONRPCError(RPC_WALLET_ERROR, "Private key not available");
+       sign_message = signCommit(key,message);
        sign_script << ToByteVector(sign_message);
    }
 

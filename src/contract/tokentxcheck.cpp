@@ -127,20 +127,8 @@ bool TokenInputValid(const std::string &token_input_txid, const uint32_t token_i
     return true;
 }
 
-std::string signTokenTxid(const std::string &strAddress,const std::string &strMessage)
+std::string signCommit(const CKey &key, const std::string &strMessage)
 {
-
-    CTxDestination dest = DecodeDestination(strAddress);
-    if (!IsValidDestination(dest))
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
-
-    const CKeyID *keyID = boost::get<CKeyID>(&dest);
-    if (!keyID)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
-
-    CKey key;
-    if (!pwalletMain->GetKey(*keyID, key))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Private key not available");
 
     std::vector<unsigned char> vchSig = signmessage(strMessage, key);
     if (vchSig.empty())

@@ -13,6 +13,9 @@
 #include "utilmoneystr.h"
 #include "txmempool.h"
 
+#include "contract/contractconfig.h"
+#include "contract/contracterror.h"
+
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
@@ -30,7 +33,7 @@ int CheckTokenVin(const UniValue &params)
     assert(pwalletMain != NULL);
     pwalletMain->AvailableCoins(vecOutputs, false, NULL, true);
     int count_utxo =0;
-    for (unsigned int i =0;i<token_vin_list.size();i++)
+    for (unsigned int i =0; i<token_vin_list.size(); i++)
     {
         string token_vin_txid = token_vin_list[i];
         uint256 hash;
@@ -38,12 +41,12 @@ int CheckTokenVin(const UniValue &params)
        // isminefilter filter = ISMINE_SPENDABLE;
         if (!pwalletMain->mapWallet.count(hash))
         {
-            return ERRORTOKENVIN;
+            return TOKENINPUTSIZEERROR;
         }
-        for (unsigned  int j =0;j<vecOutputs.size();j++ )
+        for (unsigned int j =0; j<vecOutputs.size(); j++)
         {
              COutput  out = vecOutputs.at(j);
-             if ( out.tx->GetHash() == hash )
+             if (out.tx->GetHash() == hash)
              {
                  count_utxo ++;
                  break;
@@ -53,7 +56,7 @@ int CheckTokenVin(const UniValue &params)
 
     if (!count_utxo)
     {
-        ret = ERRORTOKENVIN;
+        ret = TOKENINPUTSIZEERROR;
     }
 
     return ret;
@@ -119,36 +122,69 @@ bool IsTxidUnspent(const std::string &txid, const uint32_t vout)
 }
 
 
-CScript GetTokenScript(const std::string txid)
+bool TokenInputValid(const std::string &token_input_txid, const uint32_t token_input_vout)
 {
-    CScript ret;
-
-    if (txid.size() != 64 || !IsHex(txid))
-        return ret; // invalid txid
-
-    int height = chainActive.Height();
-    CBlockIndex *pblockindex = NULL;
-
-    for (int i = 100; i <= height; ++i) 
-    {
-        pblockindex = chainActive[i];
-        CBlock block;
-        if (ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
-        {          
-            for (const auto &tx: block.vtx)
-            {
-                if (!tx->IsCoinBase() && txid == tx->GetHash().ToString())
-                {
-                    for (const auto &out: tx->vout)
-                    {
-                        if (out.scriptPubKey[0] == OP_RETURN 
-                            && (out.scriptPubKey[0] == OP_10 || out.scriptPubKey[0] == OP_11))
-                            return out.scriptPubKey;
-                    }
-                }
-            }
-        }
-    }
-    return ret;
+    return true;
 }
 
+std::string signCommit(const CKey &key, const std::string &strMessage)
+{
+
+    std::vector<unsigned char> vchSig = signmessage(strMessage, key);
+    if (vchSig.empty())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
+
+    return EncodeBase64(&vchSig[0], vchSig.size());
+}
+
+bool verifyWitness(const std::string &strSign,const std::string &strAddress,const std::string &strMessage)
+{
+
+    LOCK(cs_main);
+
+    CTxDestination destination = DecodeDestination(strAddress);
+    if (!IsValidDestination(destination))
+    {
+        return false;
+    }
+
+    const CKeyID *keyID = boost::get<CKeyID>(&destination);
+    if (!keyID)
+    {
+        return false;
+    }
+
+    bool fInvalid = false;
+    std::vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
+
+    if (fInvalid)
+        return false;
+
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+
+    CPubKey pubkey;
+    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
+        return false;
+
+    return (pubkey.GetID() == *keyID);
+}
+
+
+bool WitnessValid(const std::vector<std::string> &witness_data, const std::vector<std::string> &witness_address, const std::string &org_message)
+{
+    if (witness_data.size() != witness_address.size())
+        return false;
+
+    unsigned int size = witness_data.size();
+    for (unsigned int i = 0; i < size; i++)
+    {
+        if (!verifyWitness(witness_data.at(i),witness_address.at(i),org_message))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}

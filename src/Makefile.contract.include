@@ -1,14 +1,27 @@
 CONTRACT_H = \
 	contract/rpctoken.h\
 	contract/tokentxcheck.h \
-	contract/tokeninterpreter.h
+	contract/tokeninterpreter.h \ 
+	contract/contracterror.h \
+	contract/contractinterpeter.h \
+	contract/contracttally.h \
+	contract/contractconfig.h \
+	contract/contractio.h \
+	contract/interactiveblockchain.h
+
 
 
 			
 CONTRACT_CPP = \
 	contract/rpctoken.cpp \
 	contract/tokentxcheck.cpp \
-	contract/tokeninterpreter.cpp
+	contract/tokeninterpreter.cpp \
+	contract/contractinterpeter.cpp \
+	contract/contracttally.cpp \
+	contract/contractio.cpp \
+	contract/interactiveblockchain.cpp
+	
+	
 					
 libbitcoin_server_a_SOURCES += \
 	$(OMNICORE_CPP) \
